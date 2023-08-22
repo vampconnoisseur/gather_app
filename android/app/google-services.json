@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "443545232322",
+    "project_id": "gather-app-38bba",
+    "storage_bucket": "gather-app-38bba.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:443545232322:android:9ac8236018e14f0e4bac5b",
+        "android_client_info": {
+          "package_name": "com.example.gather_app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "443545232322-4uh6i3r48apsj1hbu9gtff326rc407e1.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC9KEQSS3DsbPOizFmft2jbe1kTDT9piz0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "443545232322-4uh6i3r48apsj1hbu9gtff326rc407e1.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
