@@ -2,6 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import 'package:flutter/material.dart';
+import 'package:gather_app/components/sign_in_button.dart';
+import 'package:gather_app/services/auth_service.dart';
 
 final _firebase = FirebaseAuth.instance;
 
@@ -21,6 +23,13 @@ class _AuthScreenState extends State<AuthScreen> {
   var _enteredEmail = '';
   var _enteredPassword = '';
   var _enteredUsername = '';
+  var _isAuthenticating = false;
+
+  void isAuthenticating() {
+    setState(() {
+      _isAuthenticating = !_isAuthenticating;
+    });
+  }
 
   void _submit() async {
     final isValid = _form.currentState!.validate();
@@ -32,6 +41,9 @@ class _AuthScreenState extends State<AuthScreen> {
     _form.currentState!.save();
 
     try {
+      setState(() {
+        _isAuthenticating = true;
+      });
       if (_isLogin) {
         await _firebase.signInWithEmailAndPassword(
             email: _enteredEmail, password: _enteredPassword);
@@ -57,6 +69,9 @@ class _AuthScreenState extends State<AuthScreen> {
           content: Text(error.message ?? 'Authentication failed.'),
         ),
       );
+      setState(() {
+        _isAuthenticating = false;
+      });
     }
   }
 
@@ -133,26 +148,76 @@ class _AuthScreenState extends State<AuthScreen> {
                               _enteredPassword = value!;
                             },
                           ),
-                          const SizedBox(height: 12),
-                          ElevatedButton(
-                            onPressed: _submit,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Theme.of(context)
-                                  .colorScheme
-                                  .primaryContainer,
+                          const SizedBox(height: 35),
+                          if (_isAuthenticating)
+                            const CircularProgressIndicator(),
+                          if (!_isAuthenticating)
+                            ElevatedButton(
+                              onPressed: _submit,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Theme.of(context)
+                                    .colorScheme
+                                    .primaryContainer,
+                                padding: const EdgeInsets.only(
+                                    left: 25, right: 25, top: 15, bottom: 15),
+                              ),
+                              child: Text(
+                                _isLogin ? 'Login' : 'Signup',
+                                style: const TextStyle(fontSize: 17),
+                              ),
                             ),
-                            child: Text(_isLogin ? 'Login' : 'Signup'),
-                          ),
-                          TextButton(
-                            onPressed: () {
-                              setState(() {
-                                _isLogin = !_isLogin;
-                              });
-                            },
-                            child: Text(_isLogin
-                                ? 'Create an account'
-                                : 'I already have an account'),
-                          ),
+                          const SizedBox(height: 30),
+                          if (!_isAuthenticating)
+                            Row(
+                              children: [
+                                const Expanded(
+                                  child: Divider(
+                                    height: 1,
+                                    color: Colors.black,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Container(
+                                  color: Colors.white,
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 16),
+                                  child: const Text(
+                                    "or",
+                                    style: TextStyle(
+                                      color: Colors.black,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                const Expanded(
+                                  child: Divider(
+                                    height: 1,
+                                    color: Colors.black,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          if (!_isAuthenticating) const SizedBox(height: 30),
+                          if (!_isAuthenticating)
+                            SignInButton(
+                              ontap: () => AuthService(
+                                      isAuthenticating: isAuthenticating)
+                                  .signInWithGoogle(),
+                              isLogin: _isLogin,
+                            ),
+                          if (!_isAuthenticating) const SizedBox(height: 12),
+                          if (!_isAuthenticating)
+                            TextButton(
+                              onPressed: () {
+                                setState(() {
+                                  _isLogin = !_isLogin;
+                                });
+                              },
+                              child: Text(_isLogin
+                                  ? 'Create an account'
+                                  : 'I already have an account'),
+                            ),
                         ],
                       ),
                     ),
