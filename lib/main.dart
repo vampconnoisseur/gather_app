@@ -11,27 +11,27 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-  runApp(const App());
+
+  final user = FirebaseAuth.instance.currentUser;
+
+  runApp(
+    App(
+      initialScreen: user != null
+          ? HomeScreen(photoURL: user.photoURL!, displayName: user.displayName!)
+          : const AuthScreen(),
+    ),
+  );
 }
 
 class App extends StatelessWidget {
-  const App({super.key});
+  final Widget initialScreen;
+
+  const App({Key? key, required this.initialScreen}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      home: StreamBuilder(
-        stream: FirebaseAuth.instance.authStateChanges(),
-        builder: (ctx, snapshot) {
-          // if (snapshot.connectionState == ConnectionState.waiting) {
-          //   return const SplashScreen();
-          // }
-          if (snapshot.hasData) {
-            return const HomeScreen();
-          }
-          return const AuthScreen();
-        },
-      ),
+      home: initialScreen,
     );
   }
 }

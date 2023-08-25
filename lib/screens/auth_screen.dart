@@ -1,9 +1,14 @@
+import 'dart:io';
+import 'package:flutter/material.dart';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 
-import 'package:flutter/material.dart';
 import 'package:gather_app/components/sign_in_button.dart';
 import 'package:gather_app/services/auth_service.dart';
+import 'package:gather_app/components/user_image_picker.dart';
+import 'package:gather_app/screens/home_screen.dart';
 
 final _firebase = FirebaseAuth.instance;
 
@@ -24,6 +29,7 @@ class _AuthScreenState extends State<AuthScreen> {
   var _enteredPassword = '';
   var _enteredUsername = '';
   var _isAuthenticating = false;
+  File? _selectedImage;
 
   void isAuthenticating() {
     setState(() {
@@ -31,11 +37,63 @@ class _AuthScreenState extends State<AuthScreen> {
     });
   }
 
-  void _submit() async {
-    final isValid = _form.currentState!.validate();
+  void _toggleFormMode() {
+    setState(() {
+      _isLogin = !_isLogin;
+    });
+  }
 
-    if (!isValid) {
-      // show error message ...
+  Future<void> _signInWithGoogle() async {
+    String? imageUrl;
+    String? displayName;
+    User? user;
+
+    try {
+      isAuthenticating();
+
+      await AuthService().signInWithGoogle();
+
+      user = _firebase.currentUser;
+
+      if (user != null) {
+        displayName = user.displayName;
+        imageUrl = user.photoURL;
+      }
+    } catch (error) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Google sign-in failed.',
+          ),
+        ),
+      );
+    } finally {
+      isAuthenticating(); // Stop authenticating
+
+      if (user != null && imageUrl != null && displayName != null) {
+        navigateToHomeScreen(context, imageUrl, displayName);
+      }
+    }
+  }
+
+  void navigateToHomeScreen(
+      BuildContext context, String photoURL, String displayName) {
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (context) => HomeScreen(
+          photoURL: photoURL,
+          displayName: displayName,
+        ),
+      ),
+    );
+  }
+
+  void _submit(BuildContext context) async {
+    final isValid = _form.currentState!.validate();
+    String? imageUrl;
+    String? displayName;
+
+    if (!isValid || !_isLogin && _selectedImage == null) {
       return;
     }
     _form.currentState!.save();
@@ -47,9 +105,21 @@ class _AuthScreenState extends State<AuthScreen> {
       if (_isLogin) {
         await _firebase.signInWithEmailAndPassword(
             email: _enteredEmail, password: _enteredPassword);
+
+        final user = _firebase.currentUser;
+        imageUrl = user?.photoURL;
+        displayName = user?.displayName;
       } else {
         final userCredentials = await _firebase.createUserWithEmailAndPassword(
             email: _enteredEmail, password: _enteredPassword);
+
+        final storageRef = FirebaseStorage.instance
+            .ref()
+            .child('user_images')
+            .child('${userCredentials.user!.uid}.jpg');
+
+        await storageRef.putFile(_selectedImage!);
+        imageUrl = await storageRef.getDownloadURL();
 
         await FirebaseFirestore.instance
             .collection('users')
@@ -57,21 +127,27 @@ class _AuthScreenState extends State<AuthScreen> {
             .set({
           'username': _enteredUsername,
           'email': _enteredEmail,
+          'image_url': imageUrl,
         });
+
+        await _firebase.currentUser!.updatePhotoURL(imageUrl);
+        await _firebase.currentUser!.updateDisplayName(_enteredUsername);
+
+        displayName = _enteredUsername;
       }
     } on FirebaseAuthException catch (error) {
-      if (error.code == 'email-already-in-use') {
-        // ...
-      }
       ScaffoldMessenger.of(context).clearSnackBars();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(error.message ?? 'Authentication failed.'),
+          content: Text(
+            error.message ?? 'Authentication failed.',
+          ),
         ),
       );
-      setState(() {
-        _isAuthenticating = false;
-      });
+
+      isAuthenticating();
+    } finally {
+      navigateToHomeScreen(context, imageUrl!, displayName!);
     }
   }
 
@@ -98,6 +174,12 @@ class _AuthScreenState extends State<AuthScreen> {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
+                          if (!_isLogin)
+                            UserImagePicker(
+                              onPickImage: (pickedImage) {
+                                _selectedImage = pickedImage;
+                              },
+                            ),
                           TextFormField(
                             decoration: const InputDecoration(
                                 labelText: 'Email Address'),
@@ -153,13 +235,17 @@ class _AuthScreenState extends State<AuthScreen> {
                             const CircularProgressIndicator(),
                           if (!_isAuthenticating)
                             ElevatedButton(
-                              onPressed: _submit,
+                              onPressed: () => _submit(context),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Theme.of(context)
                                     .colorScheme
                                     .primaryContainer,
                                 padding: const EdgeInsets.only(
-                                    left: 25, right: 25, top: 15, bottom: 15),
+                                  left: 25,
+                                  right: 25,
+                                  top: 15,
+                                  bottom: 15,
+                                ),
                               ),
                               child: Text(
                                 _isLogin ? 'Login' : 'Signup',
@@ -201,19 +287,13 @@ class _AuthScreenState extends State<AuthScreen> {
                           if (!_isAuthenticating) const SizedBox(height: 30),
                           if (!_isAuthenticating)
                             SignInButton(
-                              ontap: () => AuthService(
-                                      isAuthenticating: isAuthenticating)
-                                  .signInWithGoogle(),
+                              ontap: _signInWithGoogle,
                               isLogin: _isLogin,
                             ),
                           if (!_isAuthenticating) const SizedBox(height: 12),
                           if (!_isAuthenticating)
                             TextButton(
-                              onPressed: () {
-                                setState(() {
-                                  _isLogin = !_isLogin;
-                                });
-                              },
+                              onPressed: _toggleFormMode,
                               child: Text(_isLogin
                                   ? 'Create an account'
                                   : 'I already have an account'),

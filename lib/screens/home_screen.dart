@@ -1,9 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:gather_app/screens/auth_screen.dart';
 
 import 'package:firebase_auth/firebase_auth.dart';
 
+final _firebase = FirebaseAuth.instance;
+
 class HomeScreen extends StatelessWidget {
-  const HomeScreen({super.key});
+  final String photoURL;
+  final String displayName;
+
+  const HomeScreen(
+      {super.key, required this.photoURL, required this.displayName});
 
   @override
   Widget build(BuildContext context) {
@@ -15,7 +22,12 @@ class HomeScreen extends StatelessWidget {
         actions: [
           IconButton(
             onPressed: () {
-              FirebaseAuth.instance.signOut();
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const AuthScreen(),
+                ),
+              );
             },
             icon: const Icon(
               Icons.exit_to_app,
@@ -24,8 +36,15 @@ class HomeScreen extends StatelessWidget {
           ),
         ],
       ),
-      body: const Center(
-        child: Text("Home Screen"),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Image.network(photoURL),
+            Text(displayName),
+            Text(_firebase.currentUser!.email!),
+          ],
+        ),
       ),
     );
   }
