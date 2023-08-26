@@ -12,26 +12,36 @@ void main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  final user = FirebaseAuth.instance.currentUser;
-
   runApp(
-    App(
-      initialScreen: user != null
-          ? HomeScreen(photoURL: user.photoURL!, displayName: user.displayName!)
-          : const AuthScreen(),
-    ),
+    const App(),
   );
 }
 
 class App extends StatelessWidget {
-  final Widget initialScreen;
-
-  const App({Key? key, required this.initialScreen}) : super(key: key);
+  const App({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      home: initialScreen,
+      home: StreamBuilder<User?>(
+        stream: FirebaseAuth.instance.authStateChanges(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.active) {
+            final user = snapshot.data;
+
+            if (user != null) {
+              return HomeScreen(
+                photoURL: user.photoURL!,
+                displayName: user.displayName!,
+              );
+            } else {
+              return const AuthScreen();
+            }
+          }
+
+          return const CircularProgressIndicator();
+        },
+      ),
     );
   }
 }
