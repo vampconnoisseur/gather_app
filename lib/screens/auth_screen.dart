@@ -68,7 +68,7 @@ class _AuthScreenState extends State<AuthScreen> {
         ),
       );
     } finally {
-      isAuthenticating(); // Stop authenticating
+      isAuthenticating();
 
       if (user != null && imageUrl != null && displayName != null) {
         navigateToHomeScreen(context, imageUrl, displayName);

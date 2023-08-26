@@ -5,6 +5,7 @@ import 'firebase_options.dart';
 import 'package:flutter/material.dart';
 import 'package:gather_app/screens/auth_screen.dart';
 import 'package:gather_app/screens/home_screen.dart';
+import 'package:gather_app/screens/splash_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -39,7 +40,7 @@ class App extends StatelessWidget {
             }
           }
 
-          return const CircularProgressIndicator();
+          return const SplashScreen();
         },
       ),
     );
