@@ -1,14 +1,14 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 
+import 'package:gather_app/components/sign_in_button.dart';
+import 'package:gather_app/services/google_auth_service.dart';
+import 'package:gather_app/components/user_image_picker.dart';
+import 'package:gather_app/screens/home_screen.dart';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-
-import 'package:gather_app/components/sign_in_button.dart';
-import 'package:gather_app/services/auth_service.dart';
-import 'package:gather_app/components/user_image_picker.dart';
-import 'package:gather_app/screens/home_screen.dart';
 
 final _firebase = FirebaseAuth.instance;
 
@@ -51,7 +51,7 @@ class _AuthScreenState extends State<AuthScreen> {
     try {
       isAuthenticating();
 
-      await AuthService().signInWithGoogle();
+      await GoogleAuthService().signInWithGoogle();
 
       user = _firebase.currentUser;
 

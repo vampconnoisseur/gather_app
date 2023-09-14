@@ -70,3 +70,5 @@ example/ios/Runner/GeneratedPluginRegistrant.*
 
 # Keystore files
 *.jks
+
+config.dart
