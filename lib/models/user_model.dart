@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 class AgoraUser {
-  int uid;
   int rUid;
   bool muted;
   bool videoDisabled;
@@ -9,7 +8,6 @@ class AgoraUser {
   Color? backgroundColor;
 
   AgoraUser({
-    required this.uid,
     required this.rUid,
     this.muted = false,
     this.videoDisabled = false,
@@ -18,7 +16,6 @@ class AgoraUser {
   });
 
   AgoraUser copyWith({
-    int? uid,
     int? rUid,
     bool? muted,
     bool? videoDisabled,
@@ -26,7 +23,6 @@ class AgoraUser {
     Color? backgroundColor,
   }) {
     return AgoraUser(
-      uid: uid ?? this.uid,
       rUid: rUid ?? this.rUid,
       muted: muted ?? this.muted,
       videoDisabled: videoDisabled ?? this.videoDisabled,

@@ -234,7 +234,6 @@ class StageUser extends StatelessWidget {
               IconButton(
                 onPressed: () {
                   directorNotifier.demoteToLobbyUser(
-                    uid: directorData.activeUsers.elementAt(index).uid,
                     remoteUid: directorData.activeUsers.elementAt(index).rUid,
                   );
                 },
@@ -309,7 +308,6 @@ class LobbyUser extends StatelessWidget {
               IconButton(
                 onPressed: () {
                   directorNotifier.promoteToActiveUser(
-                    uid: directorData.lobbyUsers.elementAt(index).uid,
                     remoteUid: directorData.lobbyUsers.elementAt(index).rUid,
                   );
                 },

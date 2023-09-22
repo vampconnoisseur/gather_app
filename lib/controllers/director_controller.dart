@@ -40,26 +40,26 @@ class DirectorController extends StateNotifier<DirectorModel> {
         },
         onUserJoined: (connection, remoteUid, elapsed) {
           _log("User joined.");
-          addUserToLobby(uid: uid, remoteUid: remoteUid);
+          addUserToLobby(remoteUid: remoteUid);
         },
         onUserOffline: (connection, remoteUid, reason) {
           _log("User Left.");
-          removeUser(uid: uid);
+          removeUser(rUid: remoteUid);
         },
         onRemoteAudioStateChanged:
             (connection, remoteUid, state, reason, elapsed) {
           if (state == RemoteAudioState.remoteAudioStateDecoding) {
-            updateUserAudio(uid: uid, muted: false);
+            updateUserAudio(rUid: remoteUid, muted: false);
           } else if (state == RemoteAudioState.remoteAudioStateStopped) {
-            updateUserAudio(uid: uid, muted: true);
+            updateUserAudio(rUid: remoteUid, muted: true);
           }
         },
         onRemoteVideoStateChanged:
             (connection, remoteUid, state, reason, elapsed) {
           if (state == RemoteVideoState.remoteVideoStateDecoding) {
-            updateUserVideo(uid: uid, videoDisabled: false);
+            updateUserVideo(rUid: remoteUid, videoDisabled: false);
           } else if (state == RemoteVideoState.remoteVideoStateStopped) {
-            updateUserVideo(uid: uid, videoDisabled: true);
+            updateUserVideo(rUid: remoteUid, videoDisabled: true);
           }
         },
       ),
@@ -129,16 +129,16 @@ class DirectorController extends StateNotifier<DirectorModel> {
       {required int index, required bool muted}) async {
     if (muted) {
       state.channel!.sendMessage2(RtmMessage.fromText(
-          "unmute ${state.activeUsers.elementAt(index).uid}:${state.activeUsers.elementAt(index).rUid}"));
+          "unmute ${state.activeUsers.elementAt(index).rUid}"));
     } else {
       state.channel!.sendMessage2(RtmMessage.fromText(
-          "mute ${state.activeUsers.elementAt(index).uid}:${state.activeUsers.elementAt(index).rUid}"));
+          "mute ${state.activeUsers.elementAt(index).rUid}"));
     }
   }
 
-  Future<void> updateUserAudio({required int uid, required bool muted}) async {
+  Future<void> updateUserAudio({required int rUid, required bool muted}) async {
     AgoraUser temp =
-        state.activeUsers.singleWhere((element) => element.uid == uid);
+        state.activeUsers.singleWhere((element) => element.rUid == rUid);
     Set<AgoraUser> tempSet = state.activeUsers;
     tempSet.remove(temp);
     tempSet.add(temp.copyWith(muted: muted));
@@ -149,56 +149,45 @@ class DirectorController extends StateNotifier<DirectorModel> {
       {required int index, required bool enable}) async {
     if (enable) {
       state.channel!.sendMessage2(RtmMessage.fromText(
-          "disable ${state.activeUsers.elementAt(index).uid}:${state.activeUsers.elementAt(index).rUid}"));
+          "disable ${state.activeUsers.elementAt(index).rUid}"));
     } else {
       state.channel!.sendMessage2(RtmMessage.fromText(
-          "enable ${state.activeUsers.elementAt(index).uid}:${state.activeUsers.elementAt(index).rUid}"));
+          "enable ${state.activeUsers.elementAt(index).rUid}"));
     }
   }
 
   Future<void> updateUserVideo(
-      {required int uid, required bool videoDisabled}) async {
+      {required int rUid, required bool videoDisabled}) async {
     AgoraUser temp =
-        state.activeUsers.singleWhere((element) => element.uid == uid);
+        state.activeUsers.singleWhere((element) => element.rUid == rUid);
     Set<AgoraUser> tempSet = state.activeUsers;
     tempSet.remove(temp);
     tempSet.add(temp.copyWith(videoDisabled: videoDisabled));
     state = state.copyWith(activeUsers: tempSet);
   }
 
-  Future<void> addUserToLobby(
-      {required int uid, required int remoteUid}) async {
-    // var userAttributes = await state.client?.getUserAttributes2(uid.toString());
-
+  Future<void> addUserToLobby({required int remoteUid}) async {
     state = state.copyWith(
       lobbyUsers: {
         ...state.lobbyUsers,
         AgoraUser(
           rUid: remoteUid,
-          uid: uid,
           muted: true,
           videoDisabled: true,
           name: "todo",
-          backgroundColor: Colors.amber,
+          backgroundColor: Colors.blueAccent,
         )
       },
     );
-
-    state.channel!.sendMessage2(
-      RtmMessage.fromText(
-        Message().sendActiveUsers(activeUsers: state.activeUsers),
-      ),
-    );
   }
 
-  Future<void> promoteToActiveUser(
-      {required int uid, required int remoteUid}) async {
+  Future<void> promoteToActiveUser({required int remoteUid}) async {
     Set<AgoraUser> tempLobby = state.lobbyUsers;
     Color? tempColor;
     String? tempName;
 
     for (int i = 0; i < tempLobby.length; i++) {
-      if (tempLobby.elementAt(i).uid == uid) {
+      if (tempLobby.elementAt(i).rUid == remoteUid) {
         tempColor = tempLobby.elementAt(i).backgroundColor;
         tempName = tempLobby.elementAt(i).name;
         tempLobby.remove(tempLobby.elementAt(i));
@@ -208,30 +197,26 @@ class DirectorController extends StateNotifier<DirectorModel> {
       ...state.activeUsers,
       AgoraUser(
         rUid: remoteUid,
-        uid: uid,
         backgroundColor: tempColor,
         name: tempName,
       )
     }, lobbyUsers: tempLobby);
 
-    String uidAndRuid = "$uid:$remoteUid";
-
-    state.channel!.sendMessage2(RtmMessage.fromText("unmute $uidAndRuid"));
-    state.channel!.sendMessage2(RtmMessage.fromText("enable $uidAndRuid"));
+    state.channel!.sendMessage2(RtmMessage.fromText("unmute $remoteUid"));
+    state.channel!.sendMessage2(RtmMessage.fromText("enable $remoteUid"));
     state.channel!.sendMessage2(
       RtmMessage.fromText(
-        'activeUsers ${Message().sendActiveUsers(activeUsers: state.activeUsers)}',
+        Message().sendActiveUsers(activeUsers: state.activeUsers),
       ),
     );
   }
 
-  Future<void> demoteToLobbyUser(
-      {required int uid, required int remoteUid}) async {
+  Future<void> demoteToLobbyUser({required int remoteUid}) async {
     Set<AgoraUser> temp = state.activeUsers;
     Color? tempColor;
     String? tempName;
     for (int i = 0; i < temp.length; i++) {
-      if (temp.elementAt(i).uid == uid) {
+      if (temp.elementAt(i).rUid == remoteUid) {
         tempColor = temp.elementAt(i).backgroundColor;
         tempName = temp.elementAt(i).name;
         temp.remove(temp.elementAt(i));
@@ -241,7 +226,6 @@ class DirectorController extends StateNotifier<DirectorModel> {
       ...state.lobbyUsers,
       AgoraUser(
         rUid: remoteUid,
-        uid: uid,
         videoDisabled: true,
         muted: true,
         backgroundColor: tempColor,
@@ -249,10 +233,8 @@ class DirectorController extends StateNotifier<DirectorModel> {
       )
     });
 
-    String uidAndRuid = "$uid:$remoteUid";
-
-    state.channel!.sendMessage2(RtmMessage.fromText("mute $uidAndRuid"));
-    state.channel!.sendMessage2(RtmMessage.fromText("disable $uidAndRuid"));
+    state.channel!.sendMessage2(RtmMessage.fromText("mute $remoteUid"));
+    state.channel!.sendMessage2(RtmMessage.fromText("disable $remoteUid"));
     state.channel!.sendMessage2(
       RtmMessage.fromText(
         Message().sendActiveUsers(activeUsers: state.activeUsers),
@@ -260,18 +242,18 @@ class DirectorController extends StateNotifier<DirectorModel> {
     );
   }
 
-  Future<void> removeUser({required int uid}) async {
+  Future<void> removeUser({required int rUid}) async {
     Set<AgoraUser> tempActive = state.activeUsers;
     Set<AgoraUser> tempLobby = state.lobbyUsers;
 
     for (int i = 0; i < tempActive.length; i++) {
-      if (tempActive.elementAt(i).uid == uid) {
+      if (tempActive.elementAt(i).rUid == rUid) {
         tempActive.remove(tempActive.elementAt(i));
       }
     }
 
     for (int i = 0; i < tempLobby.length; i++) {
-      if (tempLobby.elementAt(i).uid == uid) {
+      if (tempLobby.elementAt(i).rUid == rUid) {
         tempLobby.remove(tempLobby.elementAt(i));
       }
     }

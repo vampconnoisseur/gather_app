@@ -1,4 +1,3 @@
-import 'dart:math';
 import 'package:flutter/material.dart';
 
 import 'package:gather_app/message.dart';
@@ -77,44 +76,22 @@ class ParticipantState extends State<Participant> {
           _log('[onError] err: $err, msg: $msg');
         },
         onJoinChannelSuccess: (RtcConnection connection, int elapsed) {
-          setState(
-            () {
-              _log(
-                  '[onJoinChannelSuccess] connection: ${connection.toJson()} elapsed: $elapsed');
+          _log(
+              '[onJoinChannelSuccess] connection: ${connection.toJson()} elapsed: $elapsed');
 
-              myRuid = connection.localUid.toString();
-
-              int randomColor = (Random().nextDouble() * 0xFFFFFFFF).toInt();
-
-              _client!.addOrUpdateLocalUserAttributes2(
-                [
-                  RtmAttribute('name', widget.userName),
-                  RtmAttribute(
-                    'color',
-                    randomColor.toString(),
-                  )
-                ],
-              );
-            },
-          );
+          myRuid = connection.localUid.toString();
         },
         onUserJoined: (RtcConnection connection, int rUid, int elapsed) {
-          setState(() {
-            _log(
-                '[onUserJoined] connection: ${connection.toJson()} remoteUid[Set]: $rUid elapsed: $elapsed');
-          });
+          _log(
+              '[onUserJoined] connection: ${connection.toJson()} remoteUid[Set]: $rUid elapsed: $elapsed');
         },
         onUserOffline:
             (RtcConnection connection, int rUid, UserOfflineReasonType reason) {
-          setState(() {
-            _log('userLeft: $rUid');
-          });
+          _log('userLeft: $rUid');
         },
         onLeaveChannel: (RtcConnection connection, RtcStats stats) {
-          setState(() {
-            _log('onLeaveChannel');
-            _users.clear();
-          });
+          _log('onLeaveChannel');
+          _users.clear();
         },
       ),
     );
@@ -159,56 +136,48 @@ class ParticipantState extends State<Participant> {
 
     _channel?.onMessageReceived = (message, fromMember) {
       List<String> parsedMessage = message.text.split(" ");
+
       String action = parsedMessage[0];
+      String participantRuid = parsedMessage[1];
 
-      if (parsedMessage.length > 1) {
-        String uidAndRuid = parsedMessage[1];
-
-        List<String> uidAndRuidParts = uidAndRuid.split(":");
-
-        if (uidAndRuidParts.length >= 2) {
-          int participantRuid = int.tryParse(uidAndRuidParts[1]) ?? 0;
-
-          switch (action) {
-            case "mute":
-              if (participantRuid.toString() == myRuid) {
-                setState(() {
-                  muted = true;
-                });
-                _engine.muteLocalAudioStream(true);
-              }
-              break;
-            case "unmute":
-              if (participantRuid.toString() == myRuid) {
-                setState(() {
-                  muted = false;
-                });
-                _engine.muteLocalAudioStream(false);
-              }
-              break;
-            case "disable":
-              if (participantRuid.toString() == myRuid) {
-                setState(() {
-                  videoDisabled = true;
-                });
-                _engine.muteLocalVideoStream(true);
-              }
-              break;
-            case "enable":
-              if (participantRuid.toString() == myRuid) {
-                setState(() {
-                  videoDisabled = false;
-                });
-                _engine.muteLocalVideoStream(false);
-              }
-              break;
-            case "activeUsers":
-              _users = Message().parseActiveUsers(uids: uidAndRuid);
-              setState(() {});
-              break;
-            default:
+      switch (action) {
+        case "mute":
+          if (participantRuid.toString() == myRuid) {
+            setState(() {
+              muted = true;
+            });
+            _engine.muteLocalAudioStream(true);
           }
-        }
+          break;
+        case "unmute":
+          if (participantRuid.toString() == myRuid) {
+            setState(() {
+              muted = false;
+            });
+            _engine.muteLocalAudioStream(false);
+          }
+          break;
+        case "disable":
+          if (participantRuid.toString() == myRuid) {
+            setState(() {
+              videoDisabled = true;
+            });
+            _engine.muteLocalVideoStream(true);
+          }
+          break;
+        case "enable":
+          if (participantRuid.toString() == myRuid) {
+            setState(() {
+              videoDisabled = false;
+            });
+            _engine.muteLocalVideoStream(false);
+          }
+          break;
+        case "activeUsers":
+          _users = Message().parseActiveUsers(uids: participantRuid);
+          setState(() {});
+          break;
+        default:
       }
       _log("Public Message from ${fromMember.userId}: ${message.text}");
     };
@@ -337,7 +306,7 @@ class ParticipantState extends State<Participant> {
               decoration: const BoxDecoration(
                   borderRadius: BorderRadius.only(topLeft: Radius.circular(10)),
                   color: Colors.white),
-              child: Text(_users[i].uid.toString()),
+              child: Text(_users[i].rUid.toString()),
             ),
           ),
         ]));

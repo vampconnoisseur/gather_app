@@ -3,10 +3,9 @@ import 'package:flutter/material.dart';
 
 class Message {
   String sendActiveUsers({required Set<AgoraUser> activeUsers}) {
-    String userString = "";
+    String userString = "activeUsers ";
     for (int i = 0; i < activeUsers.length; i++) {
-      userString +=
-          "${activeUsers.elementAt(i).uid}:${activeUsers.elementAt(i).rUid},";
+      userString += "${activeUsers.elementAt(i).rUid},";
     }
     return userString;
   }
@@ -17,16 +16,15 @@ class Message {
     List<AgoraUser> users = [];
 
     for (String userString in userStrings) {
-      List<String> parts = userString.split(":");
-      if (parts.length == 2) {
-        int uid = int.tryParse(parts[0]) ?? 0;
-        int rUid = int.tryParse(parts[1]) ?? 0;
+      if (userString == "") continue;
 
-        users.add(AgoraUser(
-          uid: uid,
-          rUid: rUid,
-        ));
-      }
+      users.add(
+        AgoraUser(
+          rUid: int.parse(
+            userString,
+          ),
+        ),
+      );
     }
     return users;
   }
