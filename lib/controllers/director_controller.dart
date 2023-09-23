@@ -40,7 +40,8 @@ class DirectorController extends StateNotifier<DirectorModel> {
         },
         onUserJoined: (connection, remoteUid, elapsed) {
           _log("User joined.");
-          addUserToLobby(remoteUid: remoteUid);
+          state.channel!
+              .sendMessage2(RtmMessage.fromText("sendName $remoteUid"));
         },
         onUserOffline: (connection, remoteUid, reason) {
           _log("User Left.");
@@ -113,6 +114,28 @@ class DirectorController extends StateNotifier<DirectorModel> {
     };
 
     state.channel?.onMessageReceived = (message, fromMember) {
+      List<String> parsedMessage = message.text.split(" ");
+
+      String action = parsedMessage[0];
+      String myUid = parsedMessage[1];
+      String participantRuid = parsedMessage[2];
+      String participantName = parsedMessage[3];
+
+      _log(action);
+      _log(myUid);
+      _log(participantRuid);
+      _log(participantName);
+
+      switch (action) {
+        case "theName":
+          if (myUid == uid.toString()) {
+            addUserToLobby(
+                remoteUid: int.parse(participantRuid), name: participantName);
+          }
+          break;
+
+        default:
+      }
       _log("Public Message from ${fromMember.userId}: ${message.text}");
     };
   }
@@ -166,7 +189,8 @@ class DirectorController extends StateNotifier<DirectorModel> {
     state = state.copyWith(activeUsers: tempSet);
   }
 
-  Future<void> addUserToLobby({required int remoteUid}) async {
+  Future<void> addUserToLobby(
+      {required int remoteUid, required String name}) async {
     state = state.copyWith(
       lobbyUsers: {
         ...state.lobbyUsers,
@@ -174,7 +198,7 @@ class DirectorController extends StateNotifier<DirectorModel> {
           rUid: remoteUid,
           muted: true,
           videoDisabled: true,
-          name: "todo",
+          name: name,
           backgroundColor: Colors.blueAccent,
         )
       },

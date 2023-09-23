@@ -5,7 +5,8 @@ class Message {
   String sendActiveUsers({required Set<AgoraUser> activeUsers}) {
     String userString = "activeUsers ";
     for (int i = 0; i < activeUsers.length; i++) {
-      userString += "${activeUsers.elementAt(i).rUid},";
+      userString +=
+          "${activeUsers.elementAt(i).rUid}:${activeUsers.elementAt(i).name},";
     }
     return userString;
   }
@@ -18,11 +19,14 @@ class Message {
     for (String userString in userStrings) {
       if (userString == "") continue;
 
+      List<String> rUidAndName = userString.split(":");
+
       users.add(
         AgoraUser(
           rUid: int.parse(
-            userString,
+            rUidAndName[0],
           ),
+          name: rUidAndName[1],
         ),
       );
     }

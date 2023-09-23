@@ -141,6 +141,16 @@ class ParticipantState extends State<Participant> {
       String participantRuid = parsedMessage[1];
 
       switch (action) {
+        case "theName":
+          break;
+        case "sendName":
+          if (participantRuid.toString() == myRuid) {
+            _channel!.sendMessage2(
+              RtmMessage.fromText(
+                  "theName ${fromMember.userId} $myRuid ${widget.userName}"),
+            );
+          }
+          break;
         case "mute":
           if (participantRuid.toString() == myRuid) {
             setState(() {
@@ -306,7 +316,7 @@ class ParticipantState extends State<Participant> {
               decoration: const BoxDecoration(
                   borderRadius: BorderRadius.only(topLeft: Radius.circular(10)),
                   color: Colors.white),
-              child: Text(_users[i].rUid.toString()),
+              child: Text(_users[i].name ?? "error name"),
             ),
           ),
         ]));
