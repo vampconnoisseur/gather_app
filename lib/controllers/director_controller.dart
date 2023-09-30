@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:gather_app/message.dart';
 import 'package:gather_app/models/user_model.dart';
+// import 'package:gather_app/services/renew_token.dart';
 import 'package:gather_app/utils/config.dart';
 import 'package:gather_app/models/director_model.dart';
 
@@ -70,7 +71,10 @@ class DirectorController extends StateNotifier<DirectorModel> {
         ?.setChannelProfile(ChannelProfileType.channelProfileLiveBroadcasting);
     await state.engine
         ?.setClientRole(role: ClientRoleType.clientRoleBroadcaster);
+
     await state.engine?.enableVideo();
+    await state.engine?.muteLocalVideoStream(true);
+    await state.engine?.muteLocalAudioStream(true);
 
     state.client?.onMessageReceived = (message, peerId) {
       _log("Private Message from $peerId ${message.text}");
@@ -90,8 +94,24 @@ class DirectorController extends StateNotifier<DirectorModel> {
     state.channel = await state.client?.createChannel(channelName);
     await state.channel?.join();
 
+    // String? rtcToken = await fetchRtcToken(channelName, uid);
+
+    // if (rtcToken == null) {
+    //   _log("Error fetching RTC Token. ");
+    // } else {
+    //   await state.engine?.joinChannel(
+    //     token: rtcToken,
+    //     channelId: channelName,
+    //     uid: uid,
+    //     options: const ChannelMediaOptions(
+    //       channelProfile: ChannelProfileType.channelProfileLiveBroadcasting,
+    //       clientRoleType: ClientRoleType.clientRoleBroadcaster,
+    //     ),
+    //   );
+    // }
+
     await state.engine?.joinChannel(
-      token: Config.engineAppToken,
+      token: Config.engineToken,
       channelId: channelName,
       uid: uid,
       options: const ChannelMediaOptions(
@@ -120,11 +140,6 @@ class DirectorController extends StateNotifier<DirectorModel> {
       String myUid = parsedMessage[1];
       String participantRuid = parsedMessage[2];
       String participantName = parsedMessage[3];
-
-      _log(action);
-      _log(myUid);
-      _log(participantRuid);
-      _log(participantName);
 
       switch (action) {
         case "theName":
@@ -187,6 +202,12 @@ class DirectorController extends StateNotifier<DirectorModel> {
     tempSet.remove(temp);
     tempSet.add(temp.copyWith(videoDisabled: videoDisabled));
     state = state.copyWith(activeUsers: tempSet);
+
+    state.channel!.sendMessage2(
+      RtmMessage.fromText(
+        Message().sendActiveUsers(activeUsers: state.activeUsers),
+      ),
+    );
   }
 
   Future<void> addUserToLobby(
@@ -226,8 +247,6 @@ class DirectorController extends StateNotifier<DirectorModel> {
       )
     }, lobbyUsers: tempLobby);
 
-    state.channel!.sendMessage2(RtmMessage.fromText("unmute $remoteUid"));
-    state.channel!.sendMessage2(RtmMessage.fromText("enable $remoteUid"));
     state.channel!.sendMessage2(
       RtmMessage.fromText(
         Message().sendActiveUsers(activeUsers: state.activeUsers),

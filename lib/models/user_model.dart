@@ -9,8 +9,8 @@ class AgoraUser {
 
   AgoraUser({
     required this.rUid,
-    this.muted = false,
-    this.videoDisabled = false,
+    this.muted = true,
+    this.videoDisabled = true,
     this.name,
     this.backgroundColor,
   });

@@ -1,35 +1,51 @@
+import 'dart:convert';
+
 import 'package:gather_app/models/user_model.dart';
 import 'package:flutter/material.dart';
 
 class Message {
   String sendActiveUsers({required Set<AgoraUser> activeUsers}) {
     String userString = "activeUsers ";
-    for (int i = 0; i < activeUsers.length; i++) {
-      userString +=
-          "${activeUsers.elementAt(i).rUid}:${activeUsers.elementAt(i).name},";
+
+    List<Map<String, dynamic>> userList = [];
+
+    for (var user in activeUsers) {
+      userList.add({
+        'username': user.name!,
+        'rUid': user.rUid.toString(),
+        'videoDisabled': user.videoDisabled.toString(),
+        'muted': user.muted.toString(),
+      });
     }
+
+    userString += jsonEncode(userList);
+
+    _log(userString);
     return userString;
   }
 
-  List<AgoraUser> parseActiveUsers({required String uids}) {
-    _log(uids);
-    List<String> userStrings = uids.split(",");
+  List<AgoraUser> parseActiveUsers({required String userString}) {
+    List<Map<String, dynamic>> userList = [];
     List<AgoraUser> users = [];
 
-    for (String userString in userStrings) {
-      if (userString == "") continue;
+    userList = List<Map<String, dynamic>>.from(jsonDecode(userString));
 
-      List<String> rUidAndName = userString.split(":");
+    for (var userMap in userList) {
+      final username = userMap['username'];
+      final rUid = userMap['rUid'];
+      final muted = userMap['muted'];
+      final videoDisabled = userMap['videoDisabled'];
 
       users.add(
         AgoraUser(
-          rUid: int.parse(
-            rUidAndName[0],
-          ),
-          name: rUidAndName[1],
+          rUid: int.parse(rUid),
+          name: username,
+          muted: bool.parse(muted),
+          videoDisabled: bool.parse(videoDisabled),
         ),
       );
     }
+
     return users;
   }
 }

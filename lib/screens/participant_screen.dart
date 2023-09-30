@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:gather_app/message.dart';
 import 'package:gather_app/models/user_model.dart';
+// import 'package:gather_app/services/renew_token.dart';
 import 'package:gather_app/utils/config.dart';
 
 import 'package:agora_rtc_engine/agora_rtc_engine.dart';
@@ -26,8 +27,8 @@ class ParticipantState extends State<Participant> {
   late RtcEngine _engine;
   AgoraRtmClient? _client;
   AgoraRtmChannel? _channel;
-  bool muted = false;
-  bool videoDisabled = false;
+  bool muted = true;
+  bool videoDisabled = true;
   bool activeUser = false;
 
   var myRuid = "";
@@ -116,8 +117,28 @@ class ParticipantState extends State<Participant> {
     _channel = await _client?.createChannel(widget.channelName);
     await _channel?.join();
 
+    // String? rtcToken = await fetchRtcToken(widget.channelName, widget.uid);
+
+    // if (rtcToken == null) {
+    //   _log("Error fetching RTC Token. ");
+    // } else {
+    //   _log(rtcToken);
+    //   await _engine
+    //       .joinChannel(
+    //         token: rtcToken,
+    //         channelId: widget.channelName,
+    //         uid: widget.uid,
+    //         options: const ChannelMediaOptions(
+    //           channelProfile: ChannelProfileType.channelProfileLiveBroadcasting,
+    //           clientRoleType: ClientRoleType.clientRoleBroadcaster,
+    //         ),
+    //       )
+    //       .then((value) => _log("Login successful."))
+    //       .onError((error, stackTrace) => "Error occured - $error");
+    // }
+
     await _engine.joinChannel(
-      token: Config.engineAppToken,
+      token: Config.engineToken,
       channelId: widget.channelName,
       uid: widget.uid,
       options: const ChannelMediaOptions(
@@ -184,7 +205,7 @@ class ParticipantState extends State<Participant> {
           }
           break;
         case "activeUsers":
-          _users = Message().parseActiveUsers(uids: participantRuid);
+          _users = Message().parseActiveUsers(userString: participantRuid);
           setState(() {});
           break;
         default:
@@ -279,15 +300,28 @@ class ParticipantState extends State<Participant> {
     for (int i = 0; i < _users.length; i++) {
       if (_users[i].rUid.toString() == myRuid) {
         list.add(Stack(children: [
-          AgoraVideoView(
-            controller: VideoViewController(
-              rtcEngine: _engine,
-              canvas: const VideoCanvas(uid: 0),
-            ),
-            onAgoraVideoViewCreated: (viewId) {
-              _engine.startPreview();
-            },
-          ),
+          videoDisabled
+              ? Stack(children: [
+                  Container(
+                    color: Colors.black,
+                  ),
+                  const Align(
+                    alignment: Alignment.center,
+                    child: Text(
+                      "Video Off",
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  )
+                ])
+              : AgoraVideoView(
+                  controller: VideoViewController(
+                    rtcEngine: _engine,
+                    canvas: const VideoCanvas(uid: 0),
+                  ),
+                  onAgoraVideoViewCreated: (viewId) {
+                    _engine.startPreview();
+                  },
+                ),
           Align(
             alignment: Alignment.bottomRight,
             child: Container(
@@ -302,13 +336,26 @@ class ParticipantState extends State<Participant> {
         checkIfLocalActive = true;
       } else {
         list.add(Stack(children: [
-          AgoraVideoView(
-            controller: VideoViewController.remote(
-              rtcEngine: _engine,
-              canvas: VideoCanvas(uid: _users[i].rUid),
-              connection: RtcConnection(channelId: _channel?.channelId),
-            ),
-          ),
+          _users[i].videoDisabled
+              ? Stack(children: [
+                  Container(
+                    color: Colors.black,
+                  ),
+                  const Align(
+                    alignment: Alignment.center,
+                    child: Text(
+                      "Video Off",
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  )
+                ])
+              : AgoraVideoView(
+                  controller: VideoViewController.remote(
+                    rtcEngine: _engine,
+                    canvas: VideoCanvas(uid: _users[i].rUid),
+                    connection: RtcConnection(channelId: _channel?.channelId),
+                  ),
+                ),
           Align(
             alignment: Alignment.bottomRight,
             child: Container(
