@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import 'package:gather_app/message.dart';
@@ -30,6 +31,9 @@ class ParticipantState extends State<Participant> {
   bool muted = true;
   bool videoDisabled = true;
   bool activeUser = false;
+
+  bool isAudioAlertActive = false;
+  bool isVideoAlertActive = false;
 
   var myRuid = "";
 
@@ -181,11 +185,41 @@ class ParticipantState extends State<Participant> {
           }
           break;
         case "unmute":
-          if (participantRuid.toString() == myRuid) {
-            setState(() {
-              muted = false;
-            });
-            _engine.muteLocalAudioStream(false);
+          if (participantRuid.toString() == myRuid && !isAudioAlertActive) {
+            isAudioAlertActive = true;
+
+            showDialog(
+              context: context,
+              builder: (BuildContext context) {
+                return CupertinoAlertDialog(
+                  title: const Text("Director Request"),
+                  content:
+                      const Text("The director wants to turn your audio on."),
+                  actions: <Widget>[
+                    TextButton(
+                      child: const Text("No"),
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                        isAudioAlertActive = false;
+                      },
+                    ),
+                    TextButton(
+                      child: const Text("Yes"),
+                      onPressed: () {
+                        Navigator.of(context).pop();
+
+                        setState(() {
+                          muted = false;
+                        });
+                        _engine.muteLocalAudioStream(false);
+
+                        isAudioAlertActive = false;
+                      },
+                    ),
+                  ],
+                );
+              },
+            );
           }
           break;
         case "disable":
@@ -198,10 +232,42 @@ class ParticipantState extends State<Participant> {
           break;
         case "enable":
           if (participantRuid.toString() == myRuid) {
-            setState(() {
-              videoDisabled = false;
-            });
-            _engine.muteLocalVideoStream(false);
+            if (participantRuid.toString() == myRuid && !isVideoAlertActive) {
+              isVideoAlertActive = true;
+
+              showDialog(
+                context: context,
+                builder: (BuildContext context) {
+                  return CupertinoAlertDialog(
+                    title: const Text("Director Request"),
+                    content:
+                        const Text("The director wants to turn your video on."),
+                    actions: <Widget>[
+                      TextButton(
+                        child: const Text("No"),
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                          isVideoAlertActive = false;
+                        },
+                      ),
+                      TextButton(
+                        child: const Text("Yes"),
+                        onPressed: () {
+                          Navigator.of(context).pop();
+
+                          setState(() {
+                            videoDisabled = false;
+                          });
+                          _engine.muteLocalVideoStream(false);
+
+                          isVideoAlertActive = false;
+                        },
+                      ),
+                    ],
+                  );
+                },
+              );
+            }
           }
           break;
         case "activeUsers":
