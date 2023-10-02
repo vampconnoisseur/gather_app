@@ -42,7 +42,7 @@ class DirectorController extends StateNotifier<DirectorModel> {
         onUserJoined: (connection, remoteUid, elapsed) {
           _log("User joined.");
           state.channel!
-              .sendMessage2(RtmMessage.fromText("sendName $remoteUid"));
+              .sendMessage2(RtmMessage.fromText("sendCredentials $remoteUid"));
         },
         onUserOffline: (connection, remoteUid, reason) {
           _log("User Left.");
@@ -140,15 +140,17 @@ class DirectorController extends StateNotifier<DirectorModel> {
       String myUid = parsedMessage[1];
       String participantRuid = parsedMessage[2];
       String participantName = parsedMessage[3];
+      String participantPhotoURL = parsedMessage[4];
 
       switch (action) {
-        case "theName":
+        case "theCredentials":
           if (myUid == uid.toString()) {
             addUserToLobby(
-                remoteUid: int.parse(participantRuid), name: participantName);
+                remoteUid: int.parse(participantRuid),
+                name: participantName,
+                photoURL: participantPhotoURL);
           }
           break;
-
         default:
       }
       _log("Public Message from ${fromMember.userId}: ${message.text}");
@@ -211,16 +213,19 @@ class DirectorController extends StateNotifier<DirectorModel> {
   }
 
   Future<void> addUserToLobby(
-      {required int remoteUid, required String name}) async {
+      {required int remoteUid,
+      required String name,
+      required String photoURL}) async {
     state = state.copyWith(
       lobbyUsers: {
         ...state.lobbyUsers,
         AgoraUser(
+          photoURL: photoURL,
           rUid: remoteUid,
           muted: true,
           videoDisabled: true,
           name: name,
-          backgroundColor: Colors.blueAccent,
+          backgroundColor: Colors.grey,
         )
       },
     );
@@ -230,10 +235,12 @@ class DirectorController extends StateNotifier<DirectorModel> {
     Set<AgoraUser> tempLobby = state.lobbyUsers;
     Color? tempColor;
     String? tempName;
+    String? tempPhotoURL;
 
     for (int i = 0; i < tempLobby.length; i++) {
       if (tempLobby.elementAt(i).rUid == remoteUid) {
         tempColor = tempLobby.elementAt(i).backgroundColor;
+        tempPhotoURL = tempLobby.elementAt(i).photoURL;
         tempName = tempLobby.elementAt(i).name;
         tempLobby.remove(tempLobby.elementAt(i));
       }
@@ -241,33 +248,41 @@ class DirectorController extends StateNotifier<DirectorModel> {
     state = state.copyWith(activeUsers: {
       ...state.activeUsers,
       AgoraUser(
+        photoURL: tempPhotoURL,
         rUid: remoteUid,
         backgroundColor: tempColor,
         name: tempName,
       )
     }, lobbyUsers: tempLobby);
 
+    state.channel!
+        .sendMessage2(RtmMessage.fromText("userJoined $remoteUid $tempName"));
     state.channel!.sendMessage2(
       RtmMessage.fromText(
         Message().sendActiveUsers(activeUsers: state.activeUsers),
       ),
     );
+    state.channel!.sendMessage2(RtmMessage.fromText("staged $remoteUid"));
   }
 
   Future<void> demoteToLobbyUser({required int remoteUid}) async {
     Set<AgoraUser> temp = state.activeUsers;
     Color? tempColor;
     String? tempName;
+    String? tempPhotoURL;
+
     for (int i = 0; i < temp.length; i++) {
       if (temp.elementAt(i).rUid == remoteUid) {
         tempColor = temp.elementAt(i).backgroundColor;
         tempName = temp.elementAt(i).name;
+        tempPhotoURL = temp.elementAt(i).photoURL;
         temp.remove(temp.elementAt(i));
       }
     }
     state = state.copyWith(activeUsers: temp, lobbyUsers: {
       ...state.lobbyUsers,
       AgoraUser(
+        photoURL: tempPhotoURL,
         rUid: remoteUid,
         videoDisabled: true,
         muted: true,
@@ -283,20 +298,24 @@ class DirectorController extends StateNotifier<DirectorModel> {
         Message().sendActiveUsers(activeUsers: state.activeUsers),
       ),
     );
+    state.channel!.sendMessage2(RtmMessage.fromText("unstaged $remoteUid"));
   }
 
   Future<void> removeUser({required int rUid}) async {
     Set<AgoraUser> tempActive = state.activeUsers;
     Set<AgoraUser> tempLobby = state.lobbyUsers;
+    String? tempName;
 
     for (int i = 0; i < tempActive.length; i++) {
       if (tempActive.elementAt(i).rUid == rUid) {
+        tempName = tempActive.elementAt(i).name;
         tempActive.remove(tempActive.elementAt(i));
       }
     }
 
     for (int i = 0; i < tempLobby.length; i++) {
       if (tempLobby.elementAt(i).rUid == rUid) {
+        tempName = tempLobby.elementAt(i).name;
         tempLobby.remove(tempLobby.elementAt(i));
       }
     }
@@ -307,6 +326,8 @@ class DirectorController extends StateNotifier<DirectorModel> {
         Message().sendActiveUsers(activeUsers: state.activeUsers),
       ),
     );
+    state.channel!
+        .sendMessage2(RtmMessage.fromText("removedUser $rUid $tempName"));
   }
 }
 

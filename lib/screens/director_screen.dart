@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import 'package:gather_app/controllers/director_controller.dart';
@@ -26,6 +27,16 @@ class _DirectorState extends ConsumerState<Director> {
         .joinCall(channelName: widget.channelName, uid: widget.uid);
   }
 
+  void showSnackBars() {
+    ScaffoldMessenger.of(context).clearSnackBars();
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        duration: Duration(seconds: 2),
+        content: Text('The director added you to stage.'),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     DirectorModel directorData = ref.watch(directorController);
@@ -35,6 +46,24 @@ class _DirectorState extends ConsumerState<Director> {
     Size size = MediaQuery.of(context).size;
 
     return Scaffold(
+      appBar: CupertinoNavigationBar(
+        backgroundColor: Colors.grey,
+        middle: const Text(
+          "Director's Desk",
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 21,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        leading: CupertinoNavigationBarBackButton(
+          onPressed: () {
+            directorNotifier.leaveCall();
+            Navigator.pop(context);
+          },
+          color: Colors.black,
+        ),
+      ),
       body: Padding(
         padding: const EdgeInsets.all(8.0),
         child: CustomScrollView(
@@ -157,13 +186,33 @@ class StageUser extends StatelessWidget {
           child: directorData.activeUsers.elementAt(index).videoDisabled
               ? Stack(children: [
                   Container(
-                    color: Colors.black,
+                    color: Colors.grey,
                   ),
-                  const Align(
+                  Align(
                     alignment: Alignment.center,
-                    child: Text(
-                      "Video Off",
-                      style: TextStyle(color: Colors.white),
+                    child: CircleAvatar(
+                      radius: 35,
+                      foregroundImage: NetworkImage(
+                          directorData.activeUsers.elementAt(index).photoURL!),
+                      backgroundColor: Colors.transparent,
+                    ),
+                  ),
+                  Align(
+                    alignment: Alignment.bottomRight,
+                    child: Container(
+                      decoration: BoxDecoration(
+                          borderRadius: const BorderRadius.only(
+                              topLeft: Radius.circular(10)),
+                          color: directorData.activeUsers
+                              .elementAt(index)
+                              .backgroundColor!
+                              .withOpacity(1)),
+                      padding: const EdgeInsets.all(16),
+                      child: Text(
+                        directorData.activeUsers.elementAt(index).name ??
+                            "name error",
+                        style: const TextStyle(color: Colors.black),
+                      ),
                     ),
                   )
                 ])
@@ -190,7 +239,7 @@ class StageUser extends StatelessWidget {
                       child: Text(
                         directorData.activeUsers.elementAt(index).name ??
                             "name error",
-                        style: const TextStyle(color: Colors.white),
+                        style: const TextStyle(color: Colors.black),
                       ),
                     ),
                   ),
@@ -264,60 +313,70 @@ class LobbyUser extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(10),
-          child: directorData.lobbyUsers.elementAt(index).videoDisabled
-              ? Stack(children: [
-                  Container(
-                    color: (directorData.lobbyUsers
-                                .elementAt(index)
-                                .backgroundColor !=
-                            null)
-                        ? directorData.lobbyUsers
-                            .elementAt(index)
-                            .backgroundColor!
-                            .withOpacity(1)
-                        : Colors.black,
-                  ),
-                  Align(
-                    alignment: Alignment.center,
-                    child: Text(
-                      directorData.lobbyUsers.elementAt(index).name ??
-                          "error name",
-                      style: const TextStyle(color: Colors.white),
-                    ),
-                  )
-                ])
-              : AgoraVideoView(
-                  controller: VideoViewController.remote(
-                    rtcEngine: directorData.engine!,
-                    canvas: VideoCanvas(
-                        uid: directorData.lobbyUsers.elementAt(index).rUid),
-                    connection: RtcConnection(channelId: channelName),
-                  ),
-                ),
-        ),
-        Container(
-          decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(10), color: Colors.black54),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              IconButton(
-                onPressed: () {
-                  directorNotifier.promoteToActiveUser(
-                    remoteUid: directorData.lobbyUsers.elementAt(index).rUid,
-                  );
-                },
-                icon: const Icon(Icons.arrow_upward),
-                color: Colors.white,
+    return Stack(children: [
+      ClipRRect(
+        borderRadius: BorderRadius.circular(10),
+        child: Stack(
+          children: [
+            Container(
+              color:
+                  (directorData.lobbyUsers.elementAt(index).backgroundColor !=
+                          null)
+                      ? directorData.lobbyUsers
+                          .elementAt(index)
+                          .backgroundColor!
+                          .withOpacity(1)
+                      : Colors.grey,
+            ),
+            Align(
+              alignment: Alignment.center,
+              child: CircleAvatar(
+                radius: 35,
+                foregroundImage: NetworkImage(
+                    directorData.lobbyUsers.elementAt(index).photoURL!),
+                backgroundColor: Colors.transparent,
               ),
-            ],
-          ),
+            ),
+            Align(
+              alignment: Alignment.bottomRight,
+              child: Container(
+                decoration: BoxDecoration(
+                    borderRadius:
+                        const BorderRadius.only(topLeft: Radius.circular(10)),
+                    color: directorData.lobbyUsers
+                        .elementAt(index)
+                        .backgroundColor!
+                        .withOpacity(1)),
+                padding: const EdgeInsets.all(16),
+                child: Text(
+                  directorData.lobbyUsers.elementAt(index).name ?? "name error",
+                  style: const TextStyle(color: Colors.black),
+                ),
+              ),
+            ),
+            Container(
+              decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(10),
+                  color: Colors.black54),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    onPressed: () {
+                      directorNotifier.promoteToActiveUser(
+                        remoteUid:
+                            directorData.lobbyUsers.elementAt(index).rUid,
+                      );
+                    },
+                    icon: const Icon(Icons.arrow_upward),
+                    color: Colors.white,
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
-      ],
-    );
+      ),
+    ]);
   }
 }

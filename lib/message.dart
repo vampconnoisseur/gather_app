@@ -15,6 +15,7 @@ class Message {
         'rUid': user.rUid.toString(),
         'videoDisabled': user.videoDisabled.toString(),
         'muted': user.muted.toString(),
+        'photoURL': user.photoURL,
       });
     }
 
@@ -35,9 +36,11 @@ class Message {
       final rUid = userMap['rUid'];
       final muted = userMap['muted'];
       final videoDisabled = userMap['videoDisabled'];
+      final photoURL = userMap['photoURL'];
 
       users.add(
         AgoraUser(
+          photoURL: photoURL,
           rUid: int.parse(rUid),
           name: username,
           muted: bool.parse(muted),

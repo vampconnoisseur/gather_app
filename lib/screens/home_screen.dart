@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import 'package:gather_app/screens/auth_screen.dart';
@@ -30,7 +31,6 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final _channelName = TextEditingController();
-  final _userName = TextEditingController();
   late int uid;
 
   @override
@@ -70,105 +70,245 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Gather'),
-        actions: [
-          IconButton(
-            onPressed: () async {
-              await _logout();
-            },
-            icon: const Icon(
-              Icons.exit_to_app,
-              color: Colors.white,
+      appBar: CupertinoNavigationBar(
+        leading: TextButton(
+          onPressed: () {
+            showModalBottomSheet(
+              useSafeArea: true,
+              isScrollControlled: true,
+              context: context,
+              builder: (BuildContext context) {
+                return LayoutBuilder(builder: (context, constraints) {
+                  final keyboardSpace =
+                      MediaQuery.of(context).viewInsets.bottom;
+                  return SizedBox(
+                    height: keyboardSpace + 275,
+                    child: SingleChildScrollView(
+                      child: Padding(
+                        padding:
+                            EdgeInsets.fromLTRB(30, 30, 30, keyboardSpace + 50),
+                        child: Column(
+                          children: [
+                            const Align(
+                              alignment: AlignmentDirectional.centerStart,
+                              child: Text(
+                                "Join a meeting",
+                                style: TextStyle(
+                                  fontSize: 31,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(
+                              height: 25,
+                            ),
+                            SizedBox(
+                              width: MediaQuery.of(context).size.width * 0.85,
+                              child: TextField(
+                                controller: _channelName,
+                                decoration: InputDecoration(
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(20),
+                                    borderSide:
+                                        const BorderSide(color: Colors.grey),
+                                  ),
+                                  hintText: "Channel Name",
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 30),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.white,
+                                    padding: const EdgeInsets.all(15),
+                                    shape: const RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.all(
+                                        Radius.circular(15),
+                                      ),
+                                    ),
+                                  ),
+                                  onPressed: () async {
+                                    if (_channelName.text.trim().isNotEmpty) {
+                                      await [
+                                        Permission.camera,
+                                        Permission.microphone
+                                      ].request();
+                                      Navigator.pop(
+                                        context,
+                                      );
+                                      Navigator.of(context).push(
+                                        MaterialPageRoute(
+                                          builder: (context) => Participant(
+                                            userName: widget.displayName,
+                                            photoURL: widget.photoURL,
+                                            channelName: _channelName.text,
+                                            uid: uid,
+                                          ),
+                                        ),
+                                      );
+                                    } else {
+                                      showDialog(
+                                        context: context,
+                                        builder: (BuildContext context) {
+                                          return CupertinoAlertDialog(
+                                            title: const Text("Error"),
+                                            content: const Text(
+                                              "Channel name cannot be empty.",
+                                            ),
+                                            actions: <Widget>[
+                                              TextButton(
+                                                child: const Text("Okay"),
+                                                onPressed: () {
+                                                  Navigator.of(context).pop();
+                                                },
+                                              ),
+                                            ],
+                                          );
+                                        },
+                                      );
+                                    }
+                                  },
+                                  child: const Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceEvenly,
+                                    children: [
+                                      Text(
+                                        "Participant ",
+                                        style: TextStyle(
+                                          fontSize: 20,
+                                          color: Colors.black,
+                                        ),
+                                      ),
+                                      Icon(
+                                        Icons.live_tv,
+                                        color: Colors.black,
+                                      )
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(
+                                  width: 30,
+                                ),
+                                ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.white,
+                                    padding: const EdgeInsets.all(15),
+                                    shape: const RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.all(
+                                        Radius.circular(15),
+                                      ),
+                                    ),
+                                  ),
+                                  onPressed: () async {
+                                    if (_channelName.text.trim().isNotEmpty) {
+                                      await [
+                                        Permission.camera,
+                                        Permission.microphone
+                                      ].request();
+                                      Navigator.pop(
+                                        context,
+                                      );
+                                      Navigator.of(context).push(
+                                        MaterialPageRoute(
+                                          builder: (context) => Director(
+                                            channelName: _channelName.text,
+                                            uid: uid,
+                                          ),
+                                        ),
+                                      );
+                                    } else {
+                                      showDialog(
+                                        context: context,
+                                        builder: (BuildContext context) {
+                                          return CupertinoAlertDialog(
+                                            title: const Text("Error"),
+                                            content: const Text(
+                                                "Channel name cannot be empty."),
+                                            actions: <Widget>[
+                                              TextButton(
+                                                child: const Text("Okay"),
+                                                onPressed: () {
+                                                  Navigator.of(context).pop();
+                                                },
+                                              ),
+                                            ],
+                                          );
+                                        },
+                                      );
+                                    }
+                                  },
+                                  child: const Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Text(
+                                        "Director ",
+                                        style: TextStyle(
+                                          fontSize: 20,
+                                          color: Colors.black,
+                                        ),
+                                      ),
+                                      Icon(
+                                        Icons.cut,
+                                        color: Colors.black,
+                                      )
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(
+                                  height: 50,
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                });
+              },
+            );
+          },
+          child: const Text(
+            "Join",
+            style: TextStyle(
+              fontSize: 21,
+              fontWeight: FontWeight.w600,
+              color: Colors.black,
             ),
           ),
-        ],
+        ),
+        middle: const Text(
+          'Gather',
+          style: TextStyle(fontSize: 21),
+        ),
+        trailing: CupertinoNavigationBarBackButton(
+          onPressed: () async {
+            await _logout();
+          },
+          color: Colors.black,
+        ),
+        backgroundColor: Colors.grey,
       ),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Text("Multi Streaming With Friends"),
-            const SizedBox(
-              height: 40,
-            ),
-            SizedBox(
-              width: MediaQuery.of(context).size.width * 0.85,
-              child: TextField(
-                controller: _userName,
-                decoration: InputDecoration(
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(20),
-                    borderSide: const BorderSide(color: Colors.grey),
-                  ),
-                  hintText: "User Name",
-                ),
-              ),
+            CircleAvatar(
+              radius: 50,
+              foregroundImage: NetworkImage(widget.photoURL),
+              backgroundColor: Colors.transparent,
             ),
             const SizedBox(
-              height: 8,
+              height: 15,
             ),
-            SizedBox(
-              width: MediaQuery.of(context).size.width * 0.85,
-              child: TextField(
-                controller: _channelName,
-                decoration: InputDecoration(
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(20),
-                    borderSide: const BorderSide(color: Colors.grey),
-                  ),
-                  hintText: "Channel Name",
-                ),
-              ),
-            ),
-            TextButton(
-              onPressed: () async {
-                await [Permission.camera, Permission.microphone].request();
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (context) => Participant(
-                      channelName: _channelName.text,
-                      userName: _userName.text,
-                      uid: uid,
-                    ),
-                  ),
-                );
-              },
-              child: const Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    "Participant ",
-                    style: TextStyle(fontSize: 20),
-                  ),
-                  Icon(
-                    Icons.live_tv,
-                  )
-                ],
-              ),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (context) => Director(
-                      channelName: _channelName.text,
-                      uid: uid,
-                    ),
-                  ),
-                );
-              },
-              child: const Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    "Director ",
-                    style: TextStyle(fontSize: 20),
-                  ),
-                  Icon(
-                    Icons.cut,
-                  )
-                ],
+            Text(
+              widget.displayName,
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w300,
               ),
             ),
           ],

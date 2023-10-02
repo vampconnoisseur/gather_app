@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import 'package:gather_app/components/sign_in_button.dart';
@@ -154,10 +155,12 @@ class _AuthScreenState extends State<AuthScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text(
+      appBar: const CupertinoNavigationBar(
+        middle: Text(
           'Authenticate',
+          style: TextStyle(fontSize: 21),
         ),
+        backgroundColor: Colors.grey,
       ),
       body: Center(
         child: SingleChildScrollView(
@@ -232,14 +235,14 @@ class _AuthScreenState extends State<AuthScreen> {
                           ),
                           const SizedBox(height: 35),
                           if (_isAuthenticating)
-                            const CircularProgressIndicator(),
+                            const CupertinoActivityIndicator(
+                              color: Colors.black,
+                            ),
                           if (!_isAuthenticating)
                             ElevatedButton(
                               onPressed: () => _submit(context),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: Theme.of(context)
-                                    .colorScheme
-                                    .primaryContainer,
+                                backgroundColor: Colors.grey,
                                 padding: const EdgeInsets.only(
                                   left: 25,
                                   right: 25,
@@ -249,7 +252,10 @@ class _AuthScreenState extends State<AuthScreen> {
                               ),
                               child: Text(
                                 _isLogin ? 'Login' : 'Signup',
-                                style: const TextStyle(fontSize: 17),
+                                style: const TextStyle(
+                                  fontSize: 17,
+                                  color: Colors.black,
+                                ),
                               ),
                             ),
                           const SizedBox(height: 30),
@@ -294,9 +300,14 @@ class _AuthScreenState extends State<AuthScreen> {
                           if (!_isAuthenticating)
                             TextButton(
                               onPressed: _toggleFormMode,
-                              child: Text(_isLogin
-                                  ? 'Create an account'
-                                  : 'I already have an account'),
+                              child: Text(
+                                _isLogin
+                                    ? 'Create an account'
+                                    : 'I already have an account',
+                                style: const TextStyle(
+                                  color: Colors.black,
+                                ),
+                              ),
                             ),
                         ],
                       ),

@@ -13,9 +13,11 @@ class Participant extends StatefulWidget {
   final String channelName;
   final String userName;
   final int uid;
+  final String photoURL;
 
   const Participant(
       {super.key,
+      required this.photoURL,
       required this.channelName,
       required this.userName,
       required this.uid});
@@ -53,6 +55,16 @@ class ParticipantState extends State<Participant> {
     _users.clear();
     _engine.release();
     super.dispose();
+  }
+
+  void showSnackBar({required String message}) {
+    ScaffoldMessenger.of(context).clearSnackBars();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        duration: const Duration(seconds: 2),
+      ),
+    );
   }
 
   Future<void> _initAgora() async {
@@ -166,13 +178,34 @@ class ParticipantState extends State<Participant> {
       String participantRuid = parsedMessage[1];
 
       switch (action) {
+        case "removedUser":
+          String userName = parsedMessage[2];
+          if (participantRuid != myRuid) {
+            showSnackBar(message: "$userName has left");
+          }
+        case "userJoined":
+          String userName = parsedMessage[2];
+          if (participantRuid != myRuid) {
+            showSnackBar(message: "$userName has joined");
+          }
+          break;
+        case "unstaged":
+          if (participantRuid == myRuid) {
+            showSnackBar(message: "Director has removed you from stage.");
+          }
+          break;
+        case "staged":
+          if (participantRuid == myRuid) {
+            showSnackBar(message: "Director has added you to stage.");
+          }
+          break;
         case "theName":
           break;
-        case "sendName":
+        case "sendCredentials":
           if (participantRuid.toString() == myRuid) {
             _channel!.sendMessage2(
               RtmMessage.fromText(
-                  "theName ${fromMember.userId} $myRuid ${widget.userName}"),
+                  "theCredentials ${fromMember.userId} $myRuid ${widget.userName} ${widget.photoURL}"),
             );
           }
           break;
@@ -182,6 +215,8 @@ class ParticipantState extends State<Participant> {
               muted = true;
             });
             _engine.muteLocalAudioStream(true);
+
+            showSnackBar(message: "Director has muted you.");
           }
           break;
         case "unmute":
@@ -228,6 +263,8 @@ class ParticipantState extends State<Participant> {
               videoDisabled = true;
             });
             _engine.muteLocalVideoStream(true);
+
+            showSnackBar(message: "Director has turned your video off.");
           }
           break;
         case "enable":
@@ -276,7 +313,6 @@ class ParticipantState extends State<Participant> {
           break;
         default:
       }
-      _log("Public Message from ${fromMember.userId}: ${message.text}");
     };
   }
 
@@ -306,11 +342,11 @@ class ParticipantState extends State<Participant> {
                   onPressed: _onToggleMute,
                   shape: const CircleBorder(),
                   elevation: 2.0,
-                  fillColor: muted ? Colors.blueAccent : Colors.white,
+                  fillColor: muted ? Colors.grey : Colors.white,
                   padding: const EdgeInsets.all(12.0),
                   child: Icon(
                     muted ? Icons.mic_off : Icons.mic,
-                    color: muted ? Colors.white : Colors.blueAccent,
+                    color: muted ? Colors.white : Colors.grey,
                     size: 20.0,
                   ),
                 )
@@ -332,11 +368,11 @@ class ParticipantState extends State<Participant> {
                   onPressed: _onToggleVideoDisabled,
                   shape: const CircleBorder(),
                   elevation: 2.0,
-                  fillColor: videoDisabled ? Colors.blueAccent : Colors.white,
+                  fillColor: videoDisabled ? Colors.grey : Colors.white,
                   padding: const EdgeInsets.all(12.0),
                   child: Icon(
                     videoDisabled ? Icons.videocam_off : Icons.videocam,
-                    color: videoDisabled ? Colors.white : Colors.blueAccent,
+                    color: videoDisabled ? Colors.white : Colors.grey,
                     size: 20.0,
                   ),
                 )
@@ -350,7 +386,7 @@ class ParticipantState extends State<Participant> {
                   padding: const EdgeInsets.all(12.0),
                   child: const Icon(
                     Icons.switch_camera,
-                    color: Colors.blueAccent,
+                    color: Colors.grey,
                     size: 20.0,
                   ),
                 )
@@ -363,6 +399,33 @@ class ParticipantState extends State<Participant> {
   List<Widget> _getRenderViews() {
     final List<Widget> list = [];
     bool checkIfLocalActive = false;
+
+    if (_users.isEmpty) {
+      list.add(
+        const Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CupertinoActivityIndicator(
+              color: Colors.black,
+            ),
+            SizedBox(height: 28),
+            Align(
+              alignment: Alignment.center,
+              child: Text(
+                "Hold on while the director adds you to stage.",
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 15,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+
+      return list;
+    }
+
     for (int i = 0; i < _users.length; i++) {
       if (_users[i].rUid.toString() == myRuid) {
         list.add(Stack(children: [
@@ -371,13 +434,14 @@ class ParticipantState extends State<Participant> {
                   Container(
                     color: Colors.black,
                   ),
-                  const Align(
+                  Align(
                     alignment: Alignment.center,
-                    child: Text(
-                      "Video Off",
-                      style: TextStyle(color: Colors.white),
+                    child: CircleAvatar(
+                      radius: 40,
+                      foregroundImage: NetworkImage(widget.photoURL),
+                      backgroundColor: Colors.transparent,
                     ),
-                  )
+                  ),
                 ])
               : AgoraVideoView(
                   controller: VideoViewController(
@@ -394,45 +458,52 @@ class ParticipantState extends State<Participant> {
               padding: const EdgeInsets.all(16),
               decoration: const BoxDecoration(
                   borderRadius: BorderRadius.only(topLeft: Radius.circular(10)),
-                  color: Colors.white),
+                  color: Colors.grey),
               child: Text(widget.userName),
             ),
           ),
         ]));
         checkIfLocalActive = true;
       } else {
-        list.add(Stack(children: [
-          _users[i].videoDisabled
-              ? Stack(children: [
-                  Container(
-                    color: Colors.black,
-                  ),
-                  const Align(
-                    alignment: Alignment.center,
-                    child: Text(
-                      "Video Off",
-                      style: TextStyle(color: Colors.white),
+        list.add(
+          Stack(
+            children: [
+              _users[i].videoDisabled
+                  ? Stack(children: [
+                      Container(
+                        color: Colors.black,
+                      ),
+                      Align(
+                        alignment: Alignment.center,
+                        child: CircleAvatar(
+                          radius: 40,
+                          foregroundImage: NetworkImage(_users[i].photoURL!),
+                          backgroundColor: Colors.transparent,
+                        ),
+                      )
+                    ])
+                  : AgoraVideoView(
+                      controller: VideoViewController.remote(
+                        rtcEngine: _engine,
+                        canvas: VideoCanvas(uid: _users[i].rUid),
+                        connection:
+                            RtcConnection(channelId: _channel?.channelId),
+                      ),
                     ),
-                  )
-                ])
-              : AgoraVideoView(
-                  controller: VideoViewController.remote(
-                    rtcEngine: _engine,
-                    canvas: VideoCanvas(uid: _users[i].rUid),
-                    connection: RtcConnection(channelId: _channel?.channelId),
-                  ),
+              Align(
+                alignment: Alignment.bottomRight,
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: const BoxDecoration(
+                      borderRadius:
+                          BorderRadius.only(topLeft: Radius.circular(10)),
+                      color: Colors.grey),
+                  child: Text(_users[i].name ?? "error name"),
                 ),
-          Align(
-            alignment: Alignment.bottomRight,
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              decoration: const BoxDecoration(
-                  borderRadius: BorderRadius.only(topLeft: Radius.circular(10)),
-                  color: Colors.white),
-              child: Text(_users[i].name ?? "error name"),
-            ),
+              ),
+            ],
           ),
-        ]));
+        );
       }
     }
 
