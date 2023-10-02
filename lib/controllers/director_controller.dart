@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:gather_app/message.dart';
 import 'package:gather_app/models/user_model.dart';
-// import 'package:gather_app/services/renew_token.dart';
+import 'package:gather_app/services/renew_token.dart';
 import 'package:gather_app/utils/config.dart';
 import 'package:gather_app/models/director_model.dart';
 
@@ -94,31 +94,21 @@ class DirectorController extends StateNotifier<DirectorModel> {
     state.channel = await state.client?.createChannel(channelName);
     await state.channel?.join();
 
-    // String? rtcToken = await fetchRtcToken(channelName, uid);
+    String? rtcToken = await fetchRtcToken(channelName, uid);
 
-    // if (rtcToken == null) {
-    //   _log("Error fetching RTC Token. ");
-    // } else {
-    //   await state.engine?.joinChannel(
-    //     token: rtcToken,
-    //     channelId: channelName,
-    //     uid: uid,
-    //     options: const ChannelMediaOptions(
-    //       channelProfile: ChannelProfileType.channelProfileLiveBroadcasting,
-    //       clientRoleType: ClientRoleType.clientRoleBroadcaster,
-    //     ),
-    //   );
-    // }
-
-    await state.engine?.joinChannel(
-      token: Config.engineToken,
-      channelId: channelName,
-      uid: uid,
-      options: const ChannelMediaOptions(
-        channelProfile: ChannelProfileType.channelProfileLiveBroadcasting,
-        clientRoleType: ClientRoleType.clientRoleBroadcaster,
-      ),
-    );
+    if (rtcToken == null) {
+      _log("Error fetching RTC Token. ");
+    } else {
+      await state.engine?.joinChannel(
+        token: rtcToken,
+        channelId: channelName,
+        uid: uid,
+        options: const ChannelMediaOptions(
+          channelProfile: ChannelProfileType.channelProfileLiveBroadcasting,
+          clientRoleType: ClientRoleType.clientRoleBroadcaster,
+        ),
+      );
+    }
 
     state.channel?.onMemberJoined = (member) {
       _log("Member joined: ${member.userId}, channel: ${member.channelId}");

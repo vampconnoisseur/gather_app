@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
 Future<String?> fetchRtcToken(String channel, int uid) async {
-  final url = Uri.parse('http://localhost:8080/rtc/$channel/$uid');
+  final url = Uri.parse('https://gather-server.onrender.com/rtc/$channel/$uid');
 
   try {
     final response = await http.get(url);

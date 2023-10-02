@@ -1,6 +1,8 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
+import 'dart:math';
+
 import 'package:gather_app/screens/auth_screen.dart';
 import 'package:gather_app/screens/participant_screen.dart';
 import 'package:gather_app/screens/director_screen.dart';
@@ -8,8 +10,6 @@ import 'package:gather_app/screens/director_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import 'package:permission_handler/permission_handler.dart';
-
-import 'package:shared_preferences/shared_preferences.dart';
 
 final _firebase = FirebaseAuth.instance;
 
@@ -36,21 +36,12 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    getUserUid();
+    generateSixDigitNumber();
   }
 
-  Future<void> getUserUid() async {
-    SharedPreferences preferences = await SharedPreferences.getInstance();
-    int? storedUid = preferences.getInt("localUid");
-    if (storedUid != null) {
-      uid = storedUid;
-      _log("storedUID: $uid");
-    } else {
-      int time = DateTime.now().microsecondsSinceEpoch;
-      uid = int.parse(time.toString().substring(1, time.toString().length - 3));
-      preferences.setInt("localUid", uid);
-      _log("settingUID: $uid");
-    }
+  void generateSixDigitNumber() {
+    final random = Random();
+    uid = 100000 + random.nextInt(900000);
   }
 
   Future<void> _logout() async {

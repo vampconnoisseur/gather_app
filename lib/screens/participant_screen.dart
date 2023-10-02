@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 
 import 'package:gather_app/message.dart';
 import 'package:gather_app/models/user_model.dart';
-// import 'package:gather_app/services/renew_token.dart';
+import 'package:gather_app/services/renew_token.dart';
 import 'package:gather_app/utils/config.dart';
 
 import 'package:agora_rtc_engine/agora_rtc_engine.dart';
@@ -133,35 +133,21 @@ class ParticipantState extends State<Participant> {
     _channel = await _client?.createChannel(widget.channelName);
     await _channel?.join();
 
-    // String? rtcToken = await fetchRtcToken(widget.channelName, widget.uid);
+    String? rtcToken = await fetchRtcToken(widget.channelName, widget.uid);
 
-    // if (rtcToken == null) {
-    //   _log("Error fetching RTC Token. ");
-    // } else {
-    //   _log(rtcToken);
-    //   await _engine
-    //       .joinChannel(
-    //         token: rtcToken,
-    //         channelId: widget.channelName,
-    //         uid: widget.uid,
-    //         options: const ChannelMediaOptions(
-    //           channelProfile: ChannelProfileType.channelProfileLiveBroadcasting,
-    //           clientRoleType: ClientRoleType.clientRoleBroadcaster,
-    //         ),
-    //       )
-    //       .then((value) => _log("Login successful."))
-    //       .onError((error, stackTrace) => "Error occured - $error");
-    // }
-
-    await _engine.joinChannel(
-      token: Config.engineToken,
-      channelId: widget.channelName,
-      uid: widget.uid,
-      options: const ChannelMediaOptions(
-        channelProfile: ChannelProfileType.channelProfileLiveBroadcasting,
-        clientRoleType: ClientRoleType.clientRoleBroadcaster,
-      ),
-    );
+    if (rtcToken == null) {
+      _log("Error fetching RTC Token. ");
+    } else {
+      await _engine.joinChannel(
+        token: rtcToken,
+        channelId: widget.channelName,
+        uid: widget.uid,
+        options: const ChannelMediaOptions(
+          channelProfile: ChannelProfileType.channelProfileLiveBroadcasting,
+          clientRoleType: ClientRoleType.clientRoleBroadcaster,
+        ),
+      );
+    }
 
     _channel?.onMemberJoined = (member) {
       _log("Member joined: ${member.userId}, channel: ${member.channelId}");
