@@ -1,4 +1,5 @@
 import 'dart:io';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
@@ -32,6 +33,16 @@ class _AuthScreenState extends State<AuthScreen> {
   var _isAuthenticating = false;
   File? _selectedImage;
 
+  void showSnackBar({required String message}) {
+    ScaffoldMessenger.of(context).clearSnackBars();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
   void isAuthenticating() {
     setState(() {
       _isAuthenticating = !_isAuthenticating;
@@ -47,6 +58,7 @@ class _AuthScreenState extends State<AuthScreen> {
   Future<void> _signInWithGoogle() async {
     String? imageUrl;
     String? displayName;
+    String? userEmail;
     User? user;
 
     try {
@@ -57,33 +69,40 @@ class _AuthScreenState extends State<AuthScreen> {
       user = _firebase.currentUser;
 
       if (user != null) {
-        displayName = user.displayName;
+        final displayNameParts = user.displayName?.split(' ');
+
+        if (displayNameParts != null && displayNameParts.isNotEmpty) {
+          displayName = displayNameParts[0];
+        } else {
+          displayName = user.displayName;
+        }
+
         imageUrl = user.photoURL;
+        userEmail = user.email;
+        await user.updateDisplayName(displayName);
       }
     } catch (error) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Google sign-in failed.',
-          ),
-        ),
-      );
+      showSnackBar(message: 'Google sign-in failed.');
     } finally {
       isAuthenticating();
 
-      if (user != null && imageUrl != null && displayName != null) {
-        navigateToHomeScreen(context, imageUrl, displayName);
+      if (user != null &&
+          imageUrl != null &&
+          displayName != null &&
+          userEmail != null) {
+        navigateToHomeScreen(imageUrl, displayName, userEmail);
       }
     }
   }
 
   void navigateToHomeScreen(
-      BuildContext context, String photoURL, String displayName) {
+      String photoURL, String displayName, String userEmail) {
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
         builder: (context) => HomeScreen(
           photoURL: photoURL,
           displayName: displayName,
+          userEmail: userEmail,
         ),
       ),
     );
@@ -93,6 +112,7 @@ class _AuthScreenState extends State<AuthScreen> {
     final isValid = _form.currentState!.validate();
     String? imageUrl;
     String? displayName;
+    String? userEmail;
 
     if (!isValid || !_isLogin && _selectedImage == null) {
       return;
@@ -108,11 +128,22 @@ class _AuthScreenState extends State<AuthScreen> {
             email: _enteredEmail, password: _enteredPassword);
 
         final user = _firebase.currentUser;
+
         imageUrl = user?.photoURL;
-        displayName = user?.displayName;
+
+        final displayNameParts = user?.displayName?.split(' ');
+        if (displayNameParts != null && displayNameParts.isNotEmpty) {
+          displayName = displayNameParts[0];
+        } else {
+          displayName = user?.displayName;
+        }
+
+        userEmail = user?.email;
       } else {
         final userCredentials = await _firebase.createUserWithEmailAndPassword(
-            email: _enteredEmail, password: _enteredPassword);
+          email: _enteredEmail,
+          password: _enteredPassword,
+        );
 
         final storageRef = FirebaseStorage.instance
             .ref()
@@ -122,43 +153,47 @@ class _AuthScreenState extends State<AuthScreen> {
         await storageRef.putFile(_selectedImage!);
         imageUrl = await storageRef.getDownloadURL();
 
+        final displayNameParts = _enteredUsername.split(' ');
+        if (displayNameParts.isNotEmpty) {
+          displayName = displayNameParts[0];
+        } else {
+          displayName = _enteredUsername;
+        }
+
+        userEmail = _enteredEmail;
+
         await FirebaseFirestore.instance
             .collection('users')
             .doc(userCredentials.user!.uid)
             .set({
-          'username': _enteredUsername,
+          'username': displayName,
           'email': _enteredEmail,
           'image_url': imageUrl,
         });
 
         await _firebase.currentUser!.updatePhotoURL(imageUrl);
-        await _firebase.currentUser!.updateDisplayName(_enteredUsername);
-
-        displayName = _enteredUsername;
+        await _firebase.currentUser!.updateDisplayName(displayName);
+        await _firebase.currentUser!.updateEmail(_enteredEmail);
       }
     } on FirebaseAuthException catch (error) {
-      ScaffoldMessenger.of(context).clearSnackBars();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            error.message ?? 'Authentication failed.',
-          ),
-        ),
-      );
-
+      showSnackBar(message: error.message ?? 'Authentication failed.');
       isAuthenticating();
     } finally {
-      navigateToHomeScreen(context, imageUrl!, displayName!);
+      navigateToHomeScreen(
+        imageUrl!,
+        displayName!,
+        userEmail!,
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: const CupertinoNavigationBar(
+      appBar: CupertinoNavigationBar(
         middle: Text(
-          'Authenticate',
-          style: TextStyle(fontSize: 21),
+          _isLogin ? 'Sign In' : 'Sign Up',
+          style: const TextStyle(fontSize: 21),
         ),
         backgroundColor: Colors.grey,
       ),
@@ -167,154 +202,178 @@ class _AuthScreenState extends State<AuthScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Card(
-                margin: const EdgeInsets.all(20),
-                child: SingleChildScrollView(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Form(
-                      key: _form,
+              if (_isAuthenticating)
+                Column(children: [
+                  const CupertinoActivityIndicator(
+                    color: Colors.black,
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    _isLogin ? "Logging in..." : "Signing up...",
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w400,
+                    ),
+                  ),
+                ]),
+              if (!_isAuthenticating)
+                Card(
+                  elevation: 10,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12.0),
+                  ),
+                  margin: const EdgeInsets.fromLTRB(35, 0, 35, 0),
+                  child: SingleChildScrollView(
+                    child: Padding(
+                      padding: const EdgeInsets.all(25),
                       child: Column(
-                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          if (!_isLogin)
-                            UserImagePicker(
-                              onPickImage: (pickedImage) {
-                                _selectedImage = pickedImage;
-                              },
-                            ),
-                          TextFormField(
-                            decoration: const InputDecoration(
-                                labelText: 'Email Address'),
-                            keyboardType: TextInputType.emailAddress,
-                            autocorrect: false,
-                            textCapitalization: TextCapitalization.none,
-                            validator: (value) {
-                              if (value == null ||
-                                  value.trim().isEmpty ||
-                                  !value.contains('@')) {
-                                return 'Please enter a valid email address.';
-                              }
-
-                              return null;
-                            },
-                            onSaved: (value) {
-                              _enteredEmail = value!;
-                            },
-                          ),
-                          if (!_isLogin)
-                            TextFormField(
-                              decoration:
-                                  const InputDecoration(labelText: 'Username'),
-                              enableSuggestions: false,
-                              validator: (value) {
-                                if (value == null ||
-                                    value.isEmpty ||
-                                    value.trim().length < 4) {
-                                  return 'Please enter at least 4 characters.';
-                                }
-                                return null;
-                              },
-                              onSaved: (value) {
-                                _enteredUsername = value!;
-                              },
-                            ),
-                          TextFormField(
-                            decoration:
-                                const InputDecoration(labelText: 'Password'),
-                            obscureText: true,
-                            validator: (value) {
-                              if (value == null || value.trim().length < 6) {
-                                return 'Password must be at least 6 characters long.';
-                              }
-                              return null;
-                            },
-                            onSaved: (value) {
-                              _enteredPassword = value!;
-                            },
-                          ),
-                          const SizedBox(height: 35),
-                          if (_isAuthenticating)
-                            const CupertinoActivityIndicator(
-                              color: Colors.black,
-                            ),
-                          if (!_isAuthenticating)
-                            ElevatedButton(
-                              onPressed: () => _submit(context),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.grey,
-                                padding: const EdgeInsets.only(
-                                  left: 25,
-                                  right: 25,
-                                  top: 15,
-                                  bottom: 15,
-                                ),
-                              ),
-                              child: Text(
-                                _isLogin ? 'Login' : 'Signup',
-                                style: const TextStyle(
-                                  fontSize: 17,
-                                  color: Colors.black,
-                                ),
-                              ),
-                            ),
-                          const SizedBox(height: 30),
-                          if (!_isAuthenticating)
-                            Row(
+                          Form(
+                            key: _form,
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
                               children: [
-                                const Expanded(
-                                  child: Divider(
-                                    height: 1,
-                                    color: Colors.black,
+                                if (!_isLogin)
+                                  UserImagePicker(
+                                    onPickImage: (pickedImage) {
+                                      _selectedImage = pickedImage;
+                                    },
                                   ),
+                                if (!_isLogin)
+                                  const SizedBox(
+                                    height: 5,
+                                  ),
+                                TextFormField(
+                                  decoration: const InputDecoration(
+                                    labelText: 'Email Address',
+                                  ),
+                                  keyboardType: TextInputType.emailAddress,
+                                  autocorrect: false,
+                                  textCapitalization: TextCapitalization.none,
+                                  validator: (value) {
+                                    if (value == null ||
+                                        value.trim().isEmpty ||
+                                        !value.contains('@')) {
+                                      return 'Please enter a valid email address.';
+                                    }
+
+                                    return null;
+                                  },
+                                  onSaved: (value) {
+                                    _enteredEmail = value!;
+                                  },
                                 ),
-                                const SizedBox(width: 8),
-                                Container(
-                                  color: Colors.white,
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 16),
-                                  child: const Text(
-                                    "or",
-                                    style: TextStyle(
+                                if (!_isLogin)
+                                  TextFormField(
+                                    decoration: const InputDecoration(
+                                        labelText: 'Username'),
+                                    enableSuggestions: false,
+                                    validator: (value) {
+                                      if (value == null ||
+                                          value.isEmpty ||
+                                          value.trim().length < 4) {
+                                        return 'Please enter at least 4 characters.';
+                                      }
+                                      return null;
+                                    },
+                                    onSaved: (value) {
+                                      _enteredUsername = value!;
+                                    },
+                                  ),
+                                TextFormField(
+                                  decoration: const InputDecoration(
+                                      labelText: 'Password'),
+                                  obscureText: true,
+                                  validator: (value) {
+                                    if (value == null ||
+                                        value.trim().length < 6) {
+                                      return 'Password must be at least 6 characters long.';
+                                    }
+                                    return null;
+                                  },
+                                  onSaved: (value) {
+                                    _enteredPassword = value!;
+                                  },
+                                ),
+                                const SizedBox(height: 50),
+                                ElevatedButton(
+                                  onPressed: () => _submit(context),
+                                  style: ElevatedButton.styleFrom(
+                                    elevation: 4,
+                                    backgroundColor: Colors.grey,
+                                    padding: const EdgeInsets.only(
+                                      left: 25,
+                                      right: 25,
+                                      top: 15,
+                                      bottom: 15,
+                                    ),
+                                  ),
+                                  child: Text(
+                                    _isLogin ? 'Login' : 'SignUp',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 18,
                                       color: Colors.black,
-                                      fontWeight: FontWeight.bold,
                                     ),
                                   ),
                                 ),
-                                const SizedBox(width: 8),
-                                const Expanded(
-                                  child: Divider(
-                                    height: 1,
-                                    color: Colors.black,
+                                const SizedBox(height: 50),
+                                if (_isLogin)
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      const Expanded(
+                                        child: Divider(
+                                          height: 1,
+                                          color: Colors.black,
+                                        ),
+                                      ),
+                                      Container(
+                                        color: Colors.white,
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 16),
+                                        child: const Text(
+                                          "or",
+                                          style: TextStyle(
+                                            color: Colors.black,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                      const Expanded(
+                                        child: Divider(
+                                          height: 1,
+                                          color: Colors.black,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                if (_isLogin) const SizedBox(height: 40),
+                                if (_isLogin)
+                                  SignInButton(
+                                    ontap: _signInWithGoogle,
+                                    isLogin: _isLogin,
+                                  ),
+                                if (_isLogin) const SizedBox(height: 30),
+                                TextButton(
+                                  onPressed: _toggleFormMode,
+                                  child: Text(
+                                    _isLogin
+                                        ? 'Create an account.'
+                                        : 'I already have an account.',
+                                    style: const TextStyle(
+                                      color: Colors.black,
+                                    ),
                                   ),
                                 ),
                               ],
                             ),
-                          if (!_isAuthenticating) const SizedBox(height: 30),
-                          if (!_isAuthenticating)
-                            SignInButton(
-                              ontap: _signInWithGoogle,
-                              isLogin: _isLogin,
-                            ),
-                          if (!_isAuthenticating) const SizedBox(height: 12),
-                          if (!_isAuthenticating)
-                            TextButton(
-                              onPressed: _toggleFormMode,
-                              child: Text(
-                                _isLogin
-                                    ? 'Create an account'
-                                    : 'I already have an account',
-                                style: const TextStyle(
-                                  color: Colors.black,
-                                ),
-                              ),
-                            ),
+                          ),
                         ],
                       ),
                     ),
                   ),
                 ),
-              ),
             ],
           ),
         ),

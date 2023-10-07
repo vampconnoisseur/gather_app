@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 
 import 'package:gather_app/message.dart';
@@ -127,27 +129,33 @@ class DirectorController extends StateNotifier<DirectorModel> {
       List<String> parsedMessage = message.text.split(" ");
 
       String action = parsedMessage[0];
-      String myUid = parsedMessage[1];
-      String participantRuid = parsedMessage[2];
-      String participantName = parsedMessage[3];
-      String participantPhotoURL = parsedMessage[4];
+      String messageText = parsedMessage[1];
 
       switch (action) {
         case "theCredentials":
-          if (myUid == uid.toString()) {
+          final userCredentials = jsonDecode(messageText);
+
+          final fromUserId = userCredentials['fromUserId'];
+          final myUid = userCredentials['myRuid'];
+          final userName = userCredentials['userName'];
+          final photoURL = userCredentials['photoURL'];
+
+          if (fromUserId == uid.toString()) {
             addUserToLobby(
-                remoteUid: int.parse(participantRuid),
-                name: participantName,
-                photoURL: participantPhotoURL);
+              remoteUid: int.tryParse(myUid.toString()) ?? 0,
+              name: userName.toString(),
+              photoURL: photoURL.toString(),
+            );
           }
           break;
         default:
       }
-      _log("Public Message from ${fromMember.userId}: ${message.text}");
     };
   }
 
   Future<void> leaveCall() async {
+    state.channel!.sendMessage2(RtmMessage.fromText("endCall dummyText"));
+
     state.channel?.leave();
     state.client?.logout();
     state.client?.release();
@@ -173,6 +181,12 @@ class DirectorController extends StateNotifier<DirectorModel> {
     tempSet.remove(temp);
     tempSet.add(temp.copyWith(muted: muted));
     state = state.copyWith(activeUsers: tempSet);
+
+    state.channel!.sendMessage2(
+      RtmMessage.fromText(
+        Message().sendActiveUsers(activeUsers: state.activeUsers),
+      ),
+    );
   }
 
   Future<void> toggleUserVideo(
@@ -218,6 +232,12 @@ class DirectorController extends StateNotifier<DirectorModel> {
           backgroundColor: Colors.grey,
         )
       },
+    );
+
+    state.channel!.sendMessage2(
+      RtmMessage.fromText(
+        Message().sendActiveUsers(activeUsers: state.activeUsers),
+      ),
     );
   }
 

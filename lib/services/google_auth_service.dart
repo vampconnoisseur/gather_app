@@ -15,4 +15,8 @@ class GoogleAuthService {
 
     await FirebaseAuth.instance.signInWithCredential(credential);
   }
+
+  signOutOfGoogle() async {
+    await GoogleSignIn().signOut();
+  }
 }

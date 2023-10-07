@@ -1,13 +1,17 @@
+import 'dart:math';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
-import 'dart:math';
-
+import 'package:gather_app/components/call_logs.dart';
 import 'package:gather_app/screens/auth_screen.dart';
 import 'package:gather_app/screens/participant_screen.dart';
 import 'package:gather_app/screens/director_screen.dart';
 
 import 'package:firebase_auth/firebase_auth.dart';
+
+import 'package:google_sign_in/google_sign_in.dart';
 
 import 'package:permission_handler/permission_handler.dart';
 
@@ -16,9 +20,11 @@ final _firebase = FirebaseAuth.instance;
 class HomeScreen extends StatefulWidget {
   final String photoURL;
   final String displayName;
+  final String userEmail;
 
   const HomeScreen({
     Key? key,
+    required this.userEmail,
     required this.photoURL,
     required this.displayName,
   }) : super(key: key);
@@ -31,17 +37,35 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final _channelName = TextEditingController();
-  late int uid;
+  int? uid;
+  int _selectedTabIndex = 0;
 
   @override
   void initState() {
     super.initState();
-    generateSixDigitNumber();
+    getUserUID();
   }
 
-  void generateSixDigitNumber() {
+  Future<void> getUserUID() async {
+    DocumentReference<Map<String, dynamic>> userCredentials =
+        FirebaseFirestore.instance.collection('user-ids').doc(widget.userEmail);
+
+    DocumentSnapshot<Map<String, dynamic>> snapshot =
+        await userCredentials.get();
+
+    if (snapshot.exists) {
+      uid = snapshot.get('uid');
+      debugPrint("Retrieved UID: $uid");
+    } else {
+      uid = generateRandomUid();
+      await userCredentials.set({'uid': uid});
+      debugPrint("Generated and saved UID: $uid");
+    }
+  }
+
+  int generateRandomUid() {
     final random = Random();
-    uid = 100000 + random.nextInt(900000);
+    return 100000 + random.nextInt(900000);
   }
 
   Future<void> _logout() async {
@@ -56,6 +80,42 @@ class _HomeScreenState extends State<HomeScreen> {
         builder: (context) => const AuthScreen(),
       ),
     );
+  }
+
+  void navigateToParticipantScreen() {
+    if (uid != null) {
+      Navigator.pop(
+        context,
+      );
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => Participant(
+            userName: widget.displayName,
+            photoURL: widget.photoURL,
+            channelName: _channelName.text,
+            uid: uid!,
+          ),
+        ),
+      );
+    } else {
+      return;
+    }
+  }
+
+  void navigateToDirectorScreen() {
+    if (uid != null) {
+      Navigator.pop(context);
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => Director(
+            channelName: _channelName.text,
+            uid: uid!,
+          ),
+        ),
+      );
+    } else {
+      return;
+    }
   }
 
   @override
@@ -127,19 +187,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                         Permission.camera,
                                         Permission.microphone
                                       ].request();
-                                      Navigator.pop(
-                                        context,
-                                      );
-                                      Navigator.of(context).push(
-                                        MaterialPageRoute(
-                                          builder: (context) => Participant(
-                                            userName: widget.displayName,
-                                            photoURL: widget.photoURL,
-                                            channelName: _channelName.text,
-                                            uid: uid,
-                                          ),
-                                        ),
-                                      );
+
+                                      navigateToParticipantScreen();
                                     } else {
                                       showDialog(
                                         context: context,
@@ -199,17 +248,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                         Permission.camera,
                                         Permission.microphone
                                       ].request();
-                                      Navigator.pop(
-                                        context,
-                                      );
-                                      Navigator.of(context).push(
-                                        MaterialPageRoute(
-                                          builder: (context) => Director(
-                                            channelName: _channelName.text,
-                                            uid: uid,
-                                          ),
-                                        ),
-                                      );
+                                      navigateToDirectorScreen();
                                     } else {
                                       showDialog(
                                         context: context,
@@ -278,37 +317,59 @@ class _HomeScreenState extends State<HomeScreen> {
         trailing: CupertinoNavigationBarBackButton(
           onPressed: () async {
             await _logout();
+            await GoogleSignIn().signOut();
           },
           color: Colors.black,
         ),
         backgroundColor: Colors.grey,
       ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            CircleAvatar(
-              radius: 50,
-              foregroundImage: NetworkImage(widget.photoURL),
-              backgroundColor: Colors.transparent,
-            ),
-            const SizedBox(
-              height: 15,
-            ),
-            Text(
-              widget.displayName,
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w300,
+      body: _selectedTabIndex == 1
+          ? CallLogsScreen(
+              uid: uid.toString(),
+            )
+          : Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircleAvatar(
+                    radius: 50,
+                    foregroundImage: NetworkImage(widget.photoURL),
+                    backgroundColor: Colors.transparent,
+                  ),
+                  const SizedBox(
+                    height: 15,
+                  ),
+                  Text(
+                    widget.displayName,
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w300,
+                    ),
+                  ),
+                ],
               ),
             ),
-          ],
-        ),
+      bottomNavigationBar: BottomNavigationBar(
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.home),
+            label: 'Home',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.history),
+            label: 'Logs',
+          ),
+        ],
+        currentIndex: _selectedTabIndex,
+        selectedItemColor: Colors.black,
+        unselectedItemColor: Colors.black45,
+        backgroundColor: Colors.grey,
+        onTap: (index) {
+          setState(() {
+            _selectedTabIndex = index;
+          });
+        },
       ),
     );
   }
-}
-
-void _log(String info) {
-  debugPrint(info);
 }

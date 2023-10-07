@@ -42,22 +42,23 @@ class _UserImagePickerState extends State<UserImagePicker> {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        CircleAvatar(
-          radius: 40,
-          backgroundColor: Colors.grey,
-          foregroundImage:
-              _pickedImageFile != null ? FileImage(_pickedImageFile!) : null,
-        ),
-        TextButton.icon(
-          onPressed: _pickImage,
-          icon: const Icon(Icons.image),
-          label: Text(
-            'Add Image',
-            style: TextStyle(
-              color: Theme.of(context).colorScheme.primary,
+        Material(
+          elevation: 4, // Adjust the elevation value as needed
+          shape: const CircleBorder(),
+          child: CircleAvatar(
+            radius: 40,
+            backgroundColor: Colors.white,
+            foregroundImage:
+                _pickedImageFile != null ? FileImage(_pickedImageFile!) : null,
+            child: GestureDetector(
+              onTap: _pickImage,
+              child: const Icon(
+                Icons.add_a_photo,
+                color: Colors.black,
+              ),
             ),
           ),
-        )
+        ),
       ],
     );
   }

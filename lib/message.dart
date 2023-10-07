@@ -51,6 +51,26 @@ class Message {
 
     return users;
   }
+
+  String sendCredentials({
+    required String fromUserId,
+    required String myRuid,
+    required String userName,
+    required String photoURL,
+  }) {
+    final credentials = {
+      'fromUserId': fromUserId,
+      'myRuid': myRuid,
+      'userName': userName,
+      'photoURL': photoURL,
+    };
+
+    final encodedMessage = jsonEncode(credentials);
+
+    final message = 'theCredentials $encodedMessage';
+
+    return message;
+  }
 }
 
 void _log(String info) {

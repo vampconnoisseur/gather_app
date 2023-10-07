@@ -9,6 +9,8 @@ import 'package:gather_app/utils/config.dart';
 import 'package:agora_rtc_engine/agora_rtc_engine.dart';
 import 'package:agora_rtm/agora_rtm.dart';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 class Participant extends StatefulWidget {
   final String channelName;
   final String userName;
@@ -38,6 +40,10 @@ class ParticipantState extends State<Participant> {
   bool isVideoAlertActive = false;
 
   var myRuid = "";
+  int? myRuid1;
+
+  DateTime? joinedTime;
+  String? joinedTimeString;
 
   List<AgoraUser> _users = [];
 
@@ -49,9 +55,13 @@ class ParticipantState extends State<Participant> {
 
   @override
   void dispose() {
+    _engine.leaveChannel();
     _channel?.leave();
     _client?.logout();
     _client?.release();
+    if (_users.isNotEmpty) {
+      _users.clear();
+    }
     _users.clear();
     _engine.release();
     super.dispose();
@@ -88,29 +98,38 @@ class ParticipantState extends State<Participant> {
     await _initAgora();
 
     _engine.registerEventHandler(
-      RtcEngineEventHandler(
-        onError: (ErrorCodeType err, String msg) {
-          _log('[onError] err: $err, msg: $msg');
-        },
-        onJoinChannelSuccess: (RtcConnection connection, int elapsed) {
-          _log(
-              '[onJoinChannelSuccess] connection: ${connection.toJson()} elapsed: $elapsed');
+      RtcEngineEventHandler(onError: (ErrorCodeType err, String msg) {
+        _log('[onError] err: $err, msg: $msg');
+      }, onJoinChannelSuccess: (RtcConnection connection, int elapsed) {
+        _log(
+            '[onJoinChannelSuccess] connection: ${connection.toJson()} elapsed: $elapsed');
 
-          myRuid = connection.localUid.toString();
-        },
-        onUserJoined: (RtcConnection connection, int rUid, int elapsed) {
-          _log(
-              '[onUserJoined] connection: ${connection.toJson()} remoteUid[Set]: $rUid elapsed: $elapsed');
-        },
-        onUserOffline:
-            (RtcConnection connection, int rUid, UserOfflineReasonType reason) {
-          _log('userLeft: $rUid');
-        },
-        onLeaveChannel: (RtcConnection connection, RtcStats stats) {
-          _log('onLeaveChannel');
-          _users.clear();
-        },
-      ),
+        myRuid = connection.localUid.toString();
+      }, onUserJoined: (RtcConnection connection, int rUid, int elapsed) async {
+        _log(
+            '[onUserJoined] connection: ${connection.toJson()} remoteUid[Set]: $rUid elapsed: $elapsed');
+
+        myRuid1 = rUid;
+
+        joinedTime = DateTime.now();
+        joinedTimeString = joinedTime?.millisecondsSinceEpoch.toString();
+
+        await FirebaseFirestore.instance
+            .collection('meetings')
+            .doc(joinedTimeString)
+            .set({
+          'channel': widget.channelName,
+          'uid': widget.uid,
+          'username': widget.userName,
+          'join_time': joinedTime,
+        });
+      }, onUserOffline:
+          (RtcConnection connection, int rUid, UserOfflineReasonType reason) {
+        _log('userLeft: $rUid');
+      }, onLeaveChannel: (RtcConnection connection, RtcStats stats) async {
+        _log('onLeaveChannel');
+        if (_users.isNotEmpty) _users.clear();
+      }),
     );
 
     _client?.onMessageReceived = (message, peerId) {
@@ -185,13 +204,17 @@ class ParticipantState extends State<Participant> {
             showSnackBar(message: "Director has added you to stage.");
           }
           break;
-        case "theName":
-          break;
         case "sendCredentials":
           if (participantRuid.toString() == myRuid) {
             _channel!.sendMessage2(
               RtmMessage.fromText(
-                  "theCredentials ${fromMember.userId} $myRuid ${widget.userName} ${widget.photoURL}"),
+                Message().sendCredentials(
+                  fromUserId: fromMember.userId,
+                  myRuid: myRuid,
+                  userName: widget.userName,
+                  photoURL: widget.photoURL,
+                ),
+              ),
             );
           }
           break;
@@ -293,6 +316,9 @@ class ParticipantState extends State<Participant> {
             }
           }
           break;
+        case "endCall":
+          showSnackBar(message: "The director has ended the call.");
+          _onCallEnd();
         case "activeUsers":
           _users = Message().parseActiveUsers(userString: participantRuid);
           setState(() {});
@@ -338,7 +364,7 @@ class ParticipantState extends State<Participant> {
                 )
               : const SizedBox(),
           RawMaterialButton(
-            onPressed: () => _onCallEnd(context),
+            onPressed: () => _onCallEnd(),
             shape: const CircleBorder(),
             elevation: 2.0,
             fillColor: Colors.redAccent,
@@ -451,6 +477,8 @@ class ParticipantState extends State<Participant> {
         ]));
         checkIfLocalActive = true;
       } else {
+        _log(_users[i].photoURL!);
+        _log("****");
         list.add(
           Stack(
             children: [
@@ -487,6 +515,17 @@ class ParticipantState extends State<Participant> {
                   child: Text(_users[i].name ?? "error name"),
                 ),
               ),
+              _users[i].muted
+                  ? const Positioned(
+                      top: 25,
+                      left: 25,
+                      child: Icon(
+                        Icons.mic_off,
+                        color: Colors.white,
+                        size: 24,
+                      ),
+                    )
+                  : Container(),
             ],
           ),
         );
@@ -547,8 +586,15 @@ class ParticipantState extends State<Participant> {
     return Container();
   }
 
-  void _onCallEnd(BuildContext context) {
+  void _onCallEnd() async {
+    // dispose();
     Navigator.pop(context);
+    await FirebaseFirestore.instance
+        .collection('meetings')
+        .doc(joinedTimeString)
+        .update({
+      'left_time': DateTime.now(),
+    }).onError((error, stackTrace) => _log(error.toString()));
   }
 
   void _onToggleMute() {

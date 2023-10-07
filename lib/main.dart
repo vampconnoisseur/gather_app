@@ -35,6 +35,7 @@ class App extends StatelessWidget {
 
             if (user != null) {
               return HomeScreen(
+                userEmail: user.email!,
                 photoURL: user.photoURL!,
                 displayName: user.displayName!,
               );
