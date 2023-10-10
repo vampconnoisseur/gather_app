@@ -1,10 +1,13 @@
+import 'dart:async';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import 'package:gather_app/message.dart';
+import 'package:gather_app/utils/config.dart';
 import 'package:gather_app/models/user_model.dart';
 import 'package:gather_app/services/renew_token.dart';
-import 'package:gather_app/utils/config.dart';
+import 'package:gather_app/components/whiteboard.dart';
 
 import 'package:agora_rtc_engine/agora_rtc_engine.dart';
 import 'package:agora_rtm/agora_rtm.dart';
@@ -38,9 +41,15 @@ class ParticipantState extends State<Participant> {
 
   bool isAudioAlertActive = false;
   bool isVideoAlertActive = false;
+  bool chatActive = false;
+  bool whiteBoardActive = false;
 
   var myRuid = "";
   int? myRuid1;
+
+  bool areControlButtonsActive = true;
+  bool isEndCallButtonActive = true;
+  Timer? buttonTimer;
 
   DateTime? joinedTime;
   String? joinedTimeString;
@@ -64,6 +73,7 @@ class ParticipantState extends State<Participant> {
     }
     _users.clear();
     _engine.release();
+    buttonTimer?.cancel();
     super.dispose();
   }
 
@@ -196,11 +206,15 @@ class ParticipantState extends State<Participant> {
           break;
         case "unstaged":
           if (participantRuid == myRuid) {
+            setState(() {
+              isEndCallButtonActive = true;
+            });
             showSnackBar(message: "Director has removed you from stage.");
           }
           break;
         case "staged":
           if (participantRuid == myRuid) {
+            startButtonTimer();
             showSnackBar(message: "Director has added you to stage.");
           }
           break;
@@ -328,15 +342,76 @@ class ParticipantState extends State<Participant> {
     };
   }
 
+  void startButtonTimer() {
+    buttonTimer?.cancel();
+    setState(() {
+      areControlButtonsActive = true;
+      isEndCallButtonActive = true;
+    });
+    buttonTimer = Timer(const Duration(seconds: 3), () {
+      setState(() {
+        areControlButtonsActive = false;
+        isEndCallButtonActive = false;
+      });
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Center(
-        child: Stack(
-          children: <Widget>[
-            _broadcastView(),
-            _toolbar(),
-          ],
+      body: Column(
+        children: <Widget>[
+          Expanded(
+            child: GestureDetector(
+              onTap: startButtonTimer,
+              child: Stack(
+                children: <Widget>[
+                  _broadcastView(),
+                  _toolbar(),
+                  if (activeUser && areControlButtonsActive) chatButton(),
+                ],
+              ),
+            ),
+          ),
+          if (whiteBoardActive) const Whiteboard(),
+        ],
+      ),
+    );
+  }
+
+  Widget chatButton() {
+    return Positioned(
+      top: 50,
+      right: 30,
+      child: RawMaterialButton(
+        onPressed: () {
+          _onToggleChat();
+          showModalBottomSheet(
+            context: context,
+            builder: (BuildContext context) {
+              return Container(
+                color: Colors.white,
+                child: const Center(
+                  child: Text(
+                    "Chat Screen Content",
+                  ),
+                ),
+              );
+            },
+          ).whenComplete(() {
+            setState(() {
+              chatActive = false;
+            });
+          });
+        },
+        shape: const CircleBorder(),
+        constraints: const BoxConstraints(maxWidth: 82),
+        elevation: 2.0,
+        fillColor: chatActive ? Colors.white : Colors.grey,
+        padding: const EdgeInsets.all(12.0),
+        child: const Icon(
+          Icons.chat,
+          size: 25.0,
         ),
       ),
     );
@@ -347,58 +422,102 @@ class ParticipantState extends State<Participant> {
       alignment: Alignment.bottomCenter,
       padding: const EdgeInsets.symmetric(vertical: 48),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min, // Set the main axis size to min
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: <Widget>[
-          activeUser
+          (activeUser && areControlButtonsActive)
               ? RawMaterialButton(
-                  onPressed: _onToggleMute,
+                  onPressed: () {
+                    startButtonTimer();
+                    _onToggleWhiteBoard();
+                  },
+                  shape: const CircleBorder(),
+                  constraints: const BoxConstraints(maxWidth: 52),
+                  elevation: 2.0,
+                  fillColor: whiteBoardActive ? Colors.white : Colors.grey,
+                  padding: const EdgeInsets.all(12.0),
+                  child: const Icon(
+                    Icons.chat,
+                    size: 20.0,
+                  ),
+                )
+              : const SizedBox(),
+          const SizedBox(
+            width: 20,
+          ),
+          (activeUser && areControlButtonsActive)
+              ? RawMaterialButton(
+                  onPressed: () {
+                    startButtonTimer();
+                    _onToggleMute();
+                  },
+                  constraints: const BoxConstraints(maxWidth: 72),
                   shape: const CircleBorder(),
                   elevation: 2.0,
                   fillColor: muted ? Colors.grey : Colors.white,
                   padding: const EdgeInsets.all(12.0),
                   child: Icon(
                     muted ? Icons.mic_off : Icons.mic,
-                    color: muted ? Colors.white : Colors.grey,
                     size: 20.0,
                   ),
                 )
               : const SizedBox(),
-          RawMaterialButton(
-            onPressed: () => _onCallEnd(),
-            shape: const CircleBorder(),
-            elevation: 2.0,
-            fillColor: Colors.redAccent,
-            padding: const EdgeInsets.all(15.0),
-            child: const Icon(
-              Icons.call_end,
-              color: Colors.white,
-              size: 35.0,
-            ),
+          const SizedBox(
+            width: 20,
           ),
-          activeUser
+          if (isEndCallButtonActive)
+            RawMaterialButton(
+              onPressed: () {
+                startButtonTimer();
+                _onCallEnd();
+              },
+              shape: const CircleBorder(),
+              constraints: const BoxConstraints(maxWidth: 72),
+              elevation: 2.0,
+              fillColor: Colors.redAccent,
+              padding: const EdgeInsets.all(15.0),
+              child: const Icon(
+                Icons.call_end,
+                color: Colors.white,
+                size: 35.0,
+              ),
+            ),
+          const SizedBox(
+            width: 20,
+          ),
+          (activeUser && areControlButtonsActive)
               ? RawMaterialButton(
-                  onPressed: _onToggleVideoDisabled,
+                  onPressed: () {
+                    startButtonTimer();
+                    _onToggleVideoDisabled();
+                  },
                   shape: const CircleBorder(),
+                  constraints: const BoxConstraints(maxWidth: 72),
                   elevation: 2.0,
                   fillColor: videoDisabled ? Colors.grey : Colors.white,
                   padding: const EdgeInsets.all(12.0),
                   child: Icon(
                     videoDisabled ? Icons.videocam_off : Icons.videocam,
-                    color: videoDisabled ? Colors.white : Colors.grey,
                     size: 20.0,
                   ),
                 )
               : const SizedBox(),
-          activeUser
+          const SizedBox(
+            width: 20,
+          ),
+          (activeUser && areControlButtonsActive)
               ? RawMaterialButton(
-                  onPressed: _onSwitchCamera,
+                  onPressed: () {
+                    startButtonTimer();
+                    _onSwitchCamera();
+                  },
                   shape: const CircleBorder(),
                   elevation: 2.0,
+                  constraints: const BoxConstraints(maxWidth: 72),
                   fillColor: Colors.white,
                   padding: const EdgeInsets.all(12.0),
                   child: const Icon(
                     Icons.switch_camera,
-                    color: Colors.grey,
                     size: 20.0,
                   ),
                 )
@@ -477,8 +596,6 @@ class ParticipantState extends State<Participant> {
         ]));
         checkIfLocalActive = true;
       } else {
-        _log(_users[i].photoURL!);
-        _log("****");
         list.add(
           Stack(
             children: [
@@ -613,6 +730,18 @@ class ParticipantState extends State<Participant> {
 
   void _onSwitchCamera() {
     _engine.switchCamera();
+  }
+
+  void _onToggleChat() {
+    setState(() {
+      chatActive = !chatActive;
+    });
+  }
+
+  void _onToggleWhiteBoard() {
+    setState(() {
+      whiteBoardActive = !whiteBoardActive;
+    });
   }
 }
 
