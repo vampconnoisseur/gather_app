@@ -125,6 +125,7 @@ class _HomeScreenState extends State<HomeScreen> {
         leading: TextButton(
           onPressed: () {
             showModalBottomSheet(
+              showDragHandle: true,
               useSafeArea: true,
               isScrollControlled: true,
               context: context,
@@ -133,11 +134,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   final keyboardSpace =
                       MediaQuery.of(context).viewInsets.bottom;
                   return SizedBox(
-                    height: keyboardSpace + 275,
+                    height: keyboardSpace + 250,
                     child: SingleChildScrollView(
                       child: Padding(
                         padding:
-                            EdgeInsets.fromLTRB(30, 30, 30, keyboardSpace + 50),
+                            EdgeInsets.fromLTRB(30, 0, 30, keyboardSpace + 50),
                         child: Column(
                           children: [
                             const Align(

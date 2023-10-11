@@ -8,9 +8,11 @@ import 'package:gather_app/utils/config.dart';
 import 'package:gather_app/models/user_model.dart';
 import 'package:gather_app/services/renew_token.dart';
 import 'package:gather_app/components/whiteboard.dart';
+import 'package:gather_app/components/new_message.dart';
+import 'package:gather_app/components/meeting_chat.dart';
 
-import 'package:agora_rtc_engine/agora_rtc_engine.dart';
 import 'package:agora_rtm/agora_rtm.dart';
+import 'package:agora_rtc_engine/agora_rtc_engine.dart';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -20,12 +22,13 @@ class Participant extends StatefulWidget {
   final int uid;
   final String photoURL;
 
-  const Participant(
-      {super.key,
-      required this.photoURL,
-      required this.channelName,
-      required this.userName,
-      required this.uid});
+  const Participant({
+    super.key,
+    required this.photoURL,
+    required this.channelName,
+    required this.userName,
+    required this.uid,
+  });
 
   @override
   ParticipantState createState() => ParticipantState();
@@ -35,14 +38,17 @@ class ParticipantState extends State<Participant> {
   late RtcEngine _engine;
   AgoraRtmClient? _client;
   AgoraRtmChannel? _channel;
-  bool muted = true;
-  bool videoDisabled = true;
-  bool activeUser = false;
 
-  bool isAudioAlertActive = false;
-  bool isVideoAlertActive = false;
+  String? meetingID;
+
+  bool muted = true;
+  bool activeUser = false;
+  bool videoDisabled = true;
+
   bool chatActive = false;
   bool whiteBoardActive = false;
+  bool isAudioAlertActive = false;
+  bool isVideoAlertActive = false;
 
   var myRuid = "";
   int? myRuid1;
@@ -193,6 +199,13 @@ class ParticipantState extends State<Participant> {
       String participantRuid = parsedMessage[1];
 
       switch (action) {
+        case "meetingID":
+          if (participantRuid == myRuid) {
+            setState(() {
+              meetingID = parsedMessage[2];
+            });
+          }
+          break;
         case "removedUser":
           String userName = parsedMessage[2];
           if (participantRuid != myRuid) {
@@ -387,16 +400,56 @@ class ParticipantState extends State<Participant> {
         onPressed: () {
           _onToggleChat();
           showModalBottomSheet(
+            useSafeArea: true,
+            isScrollControlled: true,
+            showDragHandle: true,
             context: context,
             builder: (BuildContext context) {
-              return Container(
-                color: Colors.white,
-                child: const Center(
-                  child: Text(
-                    "Chat Screen Content",
+              if (meetingID != null) {
+                return LayoutBuilder(
+                  builder: (context, constraints) {
+                    final keyboardSpace =
+                        MediaQuery.of(context).viewInsets.bottom;
+                    return SizedBox(
+                      height: keyboardSpace + 550,
+                      child: Column(
+                        children: [
+                          Expanded(
+                            child: ChatMessages(
+                              meetingID: meetingID!,
+                              photoURL: widget.photoURL,
+                              uid: widget.uid.toString(),
+                              userName: widget.userName,
+                            ),
+                          ),
+                          NewMessage(
+                            meetingID: meetingID!,
+                            uid: widget.uid.toString(),
+                            photoURL: widget.photoURL,
+                            userName: widget.userName,
+                          ),
+                          SizedBox(
+                            height: keyboardSpace + 25,
+                          )
+                        ],
+                      ),
+                    );
+                  },
+                );
+              }
+              return const Column(children: [
+                CupertinoActivityIndicator(
+                  color: Colors.black,
+                ),
+                SizedBox(height: 10),
+                Text(
+                  "Loading Chats...",
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w400,
                   ),
                 ),
-              );
+              ]);
             },
           ).whenComplete(() {
             setState(() {
@@ -437,7 +490,7 @@ class ParticipantState extends State<Participant> {
                   fillColor: whiteBoardActive ? Colors.white : Colors.grey,
                   padding: const EdgeInsets.all(12.0),
                   child: const Icon(
-                    Icons.chat,
+                    Icons.edit,
                     size: 20.0,
                   ),
                 )

@@ -33,6 +33,11 @@ class DirectorController extends StateNotifier<DirectorModel> {
     await _initialize();
     await [Permission.camera, Permission.microphone].request();
 
+    final joinedTime = DateTime.now();
+    final joinedTimeString = joinedTime.millisecondsSinceEpoch.toString();
+
+    final meetingID = "$channelName-$joinedTimeString";
+
     state.engine?.registerEventHandler(
       RtcEngineEventHandler(
         onJoinChannelSuccess: (connection, elapsed) {
@@ -45,6 +50,11 @@ class DirectorController extends StateNotifier<DirectorModel> {
           _log("User joined.");
           state.channel!
               .sendMessage2(RtmMessage.fromText("sendCredentials $remoteUid"));
+          state.channel!.sendMessage2(
+            RtmMessage.fromText(
+              "meetingID $remoteUid $meetingID",
+            ),
+          );
         },
         onUserOffline: (connection, remoteUid, reason) {
           _log("User Left.");
