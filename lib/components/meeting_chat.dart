@@ -7,14 +7,10 @@ class ChatMessages extends StatelessWidget {
     super.key,
     required this.meetingID,
     required this.uid,
-    required this.userName,
-    required this.photoURL,
   });
 
   final String uid;
   final String meetingID;
-  final String userName;
-  final String photoURL;
 
   @override
   Widget build(BuildContext context) {

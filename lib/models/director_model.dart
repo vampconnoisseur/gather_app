@@ -10,6 +10,7 @@ class DirectorModel {
   AgoraRtmClient? client;
   AgoraRtmChannel? channel;
   AgoraUser? localUser;
+  String? meetingID;
 
   DirectorModel({
     this.engine,
@@ -18,6 +19,7 @@ class DirectorModel {
     this.activeUsers = const {},
     this.lobbyUsers = const {},
     this.localUser,
+    this.meetingID,
   });
 
   DirectorModel copyWith({
@@ -27,8 +29,10 @@ class DirectorModel {
     Set<AgoraUser>? activeUsers,
     Set<AgoraUser>? lobbyUsers,
     AgoraUser? localUser,
+    String? meetingID,
   }) {
     return DirectorModel(
+      meetingID: meetingID ?? this.meetingID,
       engine: engine ?? this.engine,
       client: client ?? this.client,
       channel: channel ?? this.channel,

@@ -1,8 +1,9 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
-import 'package:gather_app/controllers/director_controller.dart';
 import 'package:gather_app/models/director_model.dart';
+import 'package:gather_app/components/meeting_chat.dart';
+import 'package:gather_app/controllers/director_controller.dart';
 
 import 'package:agora_rtc_engine/agora_rtc_engine.dart';
 
@@ -45,118 +46,152 @@ class _DirectorState extends ConsumerState<Director> {
 
     Size size = MediaQuery.of(context).size;
 
-    return Scaffold(
-      appBar: CupertinoNavigationBar(
-        backgroundColor: Colors.grey,
-        middle: const Text(
-          "Director's Desk",
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 21,
-            fontWeight: FontWeight.bold,
+    return SafeArea(
+      top: false,
+      bottom: false,
+      child: Scaffold(
+        appBar: CupertinoNavigationBar(
+          backgroundColor: Colors.grey,
+          middle: const Text(
+            "Desk",
+            style: TextStyle(
+              fontSize: 21,
+              fontWeight: FontWeight.w600,
+              color: Colors.black,
+            ),
           ),
-        ),
-        leading: CupertinoNavigationBarBackButton(
-          onPressed: () {
-            directorNotifier.leaveCall();
-            Navigator.pop(context);
-          },
-          color: Colors.black,
-        ),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: CustomScrollView(
-          slivers: [
-            SliverList(
-              delegate: SliverChildListDelegate(
-                [
-                  SafeArea(
-                    child: Container(),
-                  ),
-                ],
+          trailing: TextButton(
+            onPressed: () {
+              showModalBottomSheet(
+                useSafeArea: true,
+                isScrollControlled: true,
+                showDragHandle: true,
+                context: context,
+                builder: (BuildContext context) {
+                  return SafeArea(
+                    bottom: true,
+                    child: SizedBox(
+                      height: 550,
+                      child: ChatMessages(
+                        meetingID: directorData.meetingID!,
+                        uid: widget.uid.toString(),
+                      ),
+                    ),
+                  );
+                },
+              );
+            },
+            child: const Text(
+              "Chat",
+              style: TextStyle(
+                fontSize: 21,
+                fontWeight: FontWeight.w600,
+                color: Colors.black,
               ),
             ),
-            if (directorData.activeUsers.isEmpty)
+          ),
+          leading: CupertinoNavigationBarBackButton(
+            onPressed: () {
+              directorNotifier.leaveCall();
+              Navigator.pop(context);
+            },
+            color: Colors.black,
+          ),
+        ),
+        body: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: CustomScrollView(
+            slivers: [
               SliverList(
                 delegate: SliverChildListDelegate(
                   [
-                    Center(
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 20),
-                        child: const Text("Empty Stage"),
+                    SafeArea(
+                      child: Container(),
+                    ),
+                  ],
+                ),
+              ),
+              if (directorData.activeUsers.isEmpty)
+                SliverList(
+                  delegate: SliverChildListDelegate(
+                    [
+                      Center(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 20),
+                          child: const Text("Empty Stage"),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              SliverGrid(
+                delegate: SliverChildBuilderDelegate((context, index) {
+                  return Row(
+                    children: [
+                      Expanded(
+                        child: StageUser(
+                            channelName: widget.channelName,
+                            directorData: directorData,
+                            directorNotifier: directorNotifier,
+                            index: index),
+                      ),
+                    ],
+                  );
+                }, childCount: directorData.activeUsers.length),
+                gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+                    maxCrossAxisExtent: size.width / 2,
+                    crossAxisSpacing: 20,
+                    mainAxisSpacing: 20),
+              ),
+              SliverList(
+                delegate: SliverChildListDelegate(
+                  [
+                    const Padding(
+                      padding: EdgeInsets.all(8.0),
+                      child: Divider(
+                        thickness: 3,
+                        indent: 80,
+                        endIndent: 80,
                       ),
                     ),
                   ],
                 ),
               ),
-            SliverGrid(
-              delegate: SliverChildBuilderDelegate((context, index) {
-                return Row(
-                  children: [
-                    Expanded(
-                      child: StageUser(
+              if (directorData.lobbyUsers.isEmpty)
+                SliverList(
+                  delegate: SliverChildListDelegate(
+                    [
+                      Center(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 20),
+                          child: const Text("Empty Lobby"),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              SliverGrid(
+                gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+                    maxCrossAxisExtent: size.width / 2,
+                    crossAxisSpacing: 20,
+                    mainAxisSpacing: 20),
+                delegate: SliverChildBuilderDelegate((BuildContext ctx, index) {
+                  return Row(
+                    children: [
+                      Expanded(
+                        child: LobbyUser(
                           channelName: widget.channelName,
                           directorData: directorData,
                           directorNotifier: directorNotifier,
-                          index: index),
-                    ),
-                  ],
-                );
-              }, childCount: directorData.activeUsers.length),
-              gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
-                  maxCrossAxisExtent: size.width / 2,
-                  crossAxisSpacing: 20,
-                  mainAxisSpacing: 20),
-            ),
-            SliverList(
-              delegate: SliverChildListDelegate(
-                [
-                  const Padding(
-                    padding: EdgeInsets.all(8.0),
-                    child: Divider(
-                      thickness: 3,
-                      indent: 80,
-                      endIndent: 80,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            if (directorData.lobbyUsers.isEmpty)
-              SliverList(
-                delegate: SliverChildListDelegate(
-                  [
-                    Center(
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 20),
-                        child: const Text("Empty Lobby"),
+                          index: index,
+                        ),
                       ),
-                    ),
-                  ],
-                ),
+                    ],
+                  );
+                }, childCount: directorData.lobbyUsers.length),
               ),
-            SliverGrid(
-              gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
-                  maxCrossAxisExtent: size.width / 2,
-                  crossAxisSpacing: 20,
-                  mainAxisSpacing: 20),
-              delegate: SliverChildBuilderDelegate((BuildContext ctx, index) {
-                return Row(
-                  children: [
-                    Expanded(
-                      child: LobbyUser(
-                        channelName: widget.channelName,
-                        directorData: directorData,
-                        directorNotifier: directorNotifier,
-                        index: index,
-                      ),
-                    ),
-                  ],
-                );
-              }, childCount: directorData.lobbyUsers.length),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

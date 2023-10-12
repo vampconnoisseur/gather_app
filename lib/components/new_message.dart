@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 class NewMessage extends StatefulWidget {
@@ -53,25 +54,24 @@ class _NewMessageState extends State<NewMessage> {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(
-        left: 15,
-        right: 1,
+        left: 20,
+        right: 6,
         bottom: 14,
       ),
       child: Row(
         children: [
           Expanded(
-            child: TextField(
+            child: CupertinoTextField(
               controller: _messageController,
               textCapitalization: TextCapitalization.sentences,
               autocorrect: true,
               enableSuggestions: true,
-              decoration: const InputDecoration(
-                labelText: 'Send a message...',
-              ),
+              placeholder: "Chat...",
             ),
           ),
           IconButton(
-            color: Theme.of(context).colorScheme.primary,
+            iconSize: 35,
+            color: Colors.black,
             icon: const Icon(
               Icons.send,
             ),

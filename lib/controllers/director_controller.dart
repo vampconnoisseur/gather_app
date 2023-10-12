@@ -36,7 +36,7 @@ class DirectorController extends StateNotifier<DirectorModel> {
     final joinedTime = DateTime.now();
     final joinedTimeString = joinedTime.millisecondsSinceEpoch.toString();
 
-    final meetingID = "$channelName-$joinedTimeString";
+    state.meetingID = "$channelName-$joinedTimeString";
 
     state.engine?.registerEventHandler(
       RtcEngineEventHandler(
@@ -52,7 +52,7 @@ class DirectorController extends StateNotifier<DirectorModel> {
               .sendMessage2(RtmMessage.fromText("sendCredentials $remoteUid"));
           state.channel!.sendMessage2(
             RtmMessage.fromText(
-              "meetingID $remoteUid $meetingID",
+              "meetingID $remoteUid ${state.meetingID}",
             ),
           );
         },

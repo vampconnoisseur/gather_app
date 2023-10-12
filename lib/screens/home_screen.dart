@@ -126,174 +126,173 @@ class _HomeScreenState extends State<HomeScreen> {
           onPressed: () {
             showModalBottomSheet(
               showDragHandle: true,
-              useSafeArea: true,
               isScrollControlled: true,
               context: context,
               builder: (BuildContext context) {
                 return LayoutBuilder(builder: (context, constraints) {
                   final keyboardSpace =
                       MediaQuery.of(context).viewInsets.bottom;
-                  return SizedBox(
-                    height: keyboardSpace + 250,
-                    child: SingleChildScrollView(
-                      child: Padding(
-                        padding:
-                            EdgeInsets.fromLTRB(30, 0, 30, keyboardSpace + 50),
-                        child: Column(
-                          children: [
-                            const Align(
-                              alignment: AlignmentDirectional.centerStart,
-                              child: Text(
-                                "Join a meeting",
-                                style: TextStyle(
-                                  fontSize: 31,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(
-                              height: 25,
-                            ),
-                            SizedBox(
-                              width: MediaQuery.of(context).size.width * 0.85,
-                              child: TextField(
-                                controller: _channelName,
-                                decoration: InputDecoration(
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(20),
-                                    borderSide:
-                                        const BorderSide(color: Colors.grey),
+                  return SafeArea(
+                    bottom: true,
+                    child: SizedBox(
+                      height: keyboardSpace + 233,
+                      child: SingleChildScrollView(
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(25, 0, 25, 0),
+                          child: Column(
+                            children: [
+                              const Align(
+                                alignment: AlignmentDirectional.centerStart,
+                                child: Text(
+                                  "Join a meeting",
+                                  style: TextStyle(
+                                    fontSize: 31,
+                                    fontWeight: FontWeight.bold,
                                   ),
-                                  hintText: "Channel Name",
                                 ),
                               ),
-                            ),
-                            const SizedBox(height: 30),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                ElevatedButton(
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.white,
-                                    padding: const EdgeInsets.all(15),
-                                    shape: const RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.all(
-                                        Radius.circular(15),
+                              const SizedBox(
+                                height: 25,
+                              ),
+                              SizedBox(
+                                child: TextField(
+                                  controller: _channelName,
+                                  decoration: InputDecoration(
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(20),
+                                      borderSide:
+                                          const BorderSide(color: Colors.grey),
+                                    ),
+                                    hintText: "Channel Name",
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 30),
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  ElevatedButton(
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.white,
+                                      padding: const EdgeInsets.all(15),
+                                      shape: const RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.all(
+                                          Radius.circular(15),
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                  onPressed: () async {
-                                    if (_channelName.text.trim().isNotEmpty) {
-                                      await [
-                                        Permission.camera,
-                                        Permission.microphone
-                                      ].request();
+                                    onPressed: () async {
+                                      if (_channelName.text.trim().isNotEmpty) {
+                                        await [
+                                          Permission.camera,
+                                          Permission.microphone
+                                        ].request();
 
-                                      navigateToParticipantScreen();
-                                    } else {
-                                      showDialog(
-                                        context: context,
-                                        builder: (BuildContext context) {
-                                          return CupertinoAlertDialog(
-                                            title: const Text("Error"),
-                                            content: const Text(
-                                              "Channel name cannot be empty.",
-                                            ),
-                                            actions: <Widget>[
-                                              TextButton(
-                                                child: const Text("Okay"),
-                                                onPressed: () {
-                                                  Navigator.of(context).pop();
-                                                },
+                                        navigateToParticipantScreen();
+                                      } else {
+                                        showDialog(
+                                          context: context,
+                                          builder: (BuildContext context) {
+                                            return CupertinoAlertDialog(
+                                              title: const Text("Error"),
+                                              content: const Text(
+                                                "Channel name cannot be empty.",
                                               ),
-                                            ],
-                                          );
-                                        },
-                                      );
-                                    }
-                                  },
-                                  child: const Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceEvenly,
-                                    children: [
-                                      Text(
-                                        "Participant ",
-                                        style: TextStyle(
-                                          fontSize: 20,
-                                          color: Colors.black,
+                                              actions: <Widget>[
+                                                TextButton(
+                                                  child: const Text("Okay"),
+                                                  onPressed: () {
+                                                    Navigator.of(context).pop();
+                                                  },
+                                                ),
+                                              ],
+                                            );
+                                          },
+                                        );
+                                      }
+                                    },
+                                    child: const Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceEvenly,
+                                      children: [
+                                        Text(
+                                          "Participant ",
+                                          style: TextStyle(
+                                            fontSize: 20,
+                                            color: Colors.black,
+                                          ),
                                         ),
-                                      ),
-                                      Icon(
-                                        Icons.live_tv,
-                                        color: Colors.black,
-                                      )
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(
-                                  width: 30,
-                                ),
-                                ElevatedButton(
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.white,
-                                    padding: const EdgeInsets.all(15),
-                                    shape: const RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.all(
-                                        Radius.circular(15),
-                                      ),
+                                        Icon(
+                                          Icons.live_tv,
+                                          color: Colors.black,
+                                        )
+                                      ],
                                     ),
                                   ),
-                                  onPressed: () async {
-                                    if (_channelName.text.trim().isNotEmpty) {
-                                      await [
-                                        Permission.camera,
-                                        Permission.microphone
-                                      ].request();
-                                      navigateToDirectorScreen();
-                                    } else {
-                                      showDialog(
-                                        context: context,
-                                        builder: (BuildContext context) {
-                                          return CupertinoAlertDialog(
-                                            title: const Text("Error"),
-                                            content: const Text(
-                                                "Channel name cannot be empty."),
-                                            actions: <Widget>[
-                                              TextButton(
-                                                child: const Text("Okay"),
-                                                onPressed: () {
-                                                  Navigator.of(context).pop();
-                                                },
-                                              ),
-                                            ],
-                                          );
-                                        },
-                                      );
-                                    }
-                                  },
-                                  child: const Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Text(
-                                        "Director ",
-                                        style: TextStyle(
-                                          fontSize: 20,
-                                          color: Colors.black,
+                                  const SizedBox(
+                                    width: 30,
+                                  ),
+                                  ElevatedButton(
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.white,
+                                      padding: const EdgeInsets.all(15),
+                                      shape: const RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.all(
+                                          Radius.circular(15),
                                         ),
                                       ),
-                                      Icon(
-                                        Icons.cut,
-                                        color: Colors.black,
-                                      )
-                                    ],
+                                    ),
+                                    onPressed: () async {
+                                      if (_channelName.text.trim().isNotEmpty) {
+                                        await [
+                                          Permission.camera,
+                                          Permission.microphone
+                                        ].request();
+                                        navigateToDirectorScreen();
+                                      } else {
+                                        showDialog(
+                                          context: context,
+                                          builder: (BuildContext context) {
+                                            return CupertinoAlertDialog(
+                                              title: const Text("Error"),
+                                              content: const Text(
+                                                  "Channel name cannot be empty."),
+                                              actions: <Widget>[
+                                                TextButton(
+                                                  child: const Text("Okay"),
+                                                  onPressed: () {
+                                                    Navigator.of(context).pop();
+                                                  },
+                                                ),
+                                              ],
+                                            );
+                                          },
+                                        );
+                                      }
+                                    },
+                                    child: const Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Text(
+                                          "Director ",
+                                          style: TextStyle(
+                                            fontSize: 20,
+                                            color: Colors.black,
+                                          ),
+                                        ),
+                                        Icon(
+                                          Icons.cut,
+                                          color: Colors.black,
+                                        )
+                                      ],
+                                    ),
                                   ),
-                                ),
-                                const SizedBox(
-                                  height: 50,
-                                ),
-                              ],
-                            ),
-                          ],
+                                ],
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),

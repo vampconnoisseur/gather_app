@@ -219,7 +219,10 @@ class ParticipantState extends State<Participant> {
           break;
         case "unstaged":
           if (participantRuid == myRuid) {
+            buttonTimer?.cancel();
             setState(() {
+              activeUser = false;
+              areControlButtonsActive = false;
               isEndCallButtonActive = true;
             });
             showSnackBar(message: "Director has removed you from stage.");
@@ -227,6 +230,9 @@ class ParticipantState extends State<Participant> {
           break;
         case "staged":
           if (participantRuid == myRuid) {
+            setState(() {
+              activeUser = true;
+            });
             startButtonTimer();
             showSnackBar(message: "Director has added you to stage.");
           }
@@ -371,23 +377,27 @@ class ParticipantState extends State<Participant> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Column(
-        children: <Widget>[
-          Expanded(
-            child: GestureDetector(
-              onTap: startButtonTimer,
-              child: Stack(
-                children: <Widget>[
-                  _broadcastView(),
-                  _toolbar(),
-                  if (activeUser && areControlButtonsActive) chatButton(),
-                ],
+    return SafeArea(
+      top: false,
+      bottom: activeUser,
+      child: Scaffold(
+        body: Column(
+          children: <Widget>[
+            Expanded(
+              child: GestureDetector(
+                onTap: startButtonTimer,
+                child: Stack(
+                  children: <Widget>[
+                    _broadcastView(),
+                    _toolbar(),
+                    if (activeUser && areControlButtonsActive) chatButton(),
+                  ],
+                ),
               ),
             ),
-          ),
-          if (whiteBoardActive) const Whiteboard(),
-        ],
+            if (whiteBoardActive) const Whiteboard(),
+          ],
+        ),
       ),
     );
   }
@@ -410,28 +420,28 @@ class ParticipantState extends State<Participant> {
                   builder: (context, constraints) {
                     final keyboardSpace =
                         MediaQuery.of(context).viewInsets.bottom;
-                    return SizedBox(
-                      height: keyboardSpace + 550,
-                      child: Column(
-                        children: [
-                          Expanded(
-                            child: ChatMessages(
+                    return SafeArea(
+                      child: SizedBox(
+                        height: keyboardSpace + 550,
+                        child: Column(
+                          children: [
+                            Expanded(
+                              child: ChatMessages(
+                                meetingID: meetingID!,
+                                uid: widget.uid.toString(),
+                              ),
+                            ),
+                            NewMessage(
                               meetingID: meetingID!,
-                              photoURL: widget.photoURL,
                               uid: widget.uid.toString(),
+                              photoURL: widget.photoURL,
                               userName: widget.userName,
                             ),
-                          ),
-                          NewMessage(
-                            meetingID: meetingID!,
-                            uid: widget.uid.toString(),
-                            photoURL: widget.photoURL,
-                            userName: widget.userName,
-                          ),
-                          SizedBox(
-                            height: keyboardSpace + 25,
-                          )
-                        ],
+                            SizedBox(
+                              height: keyboardSpace,
+                            )
+                          ],
+                        ),
                       ),
                     );
                   },
@@ -473,7 +483,7 @@ class ParticipantState extends State<Participant> {
   Widget _toolbar() {
     return Container(
       alignment: Alignment.bottomCenter,
-      padding: const EdgeInsets.symmetric(vertical: 48),
+      padding: const EdgeInsets.symmetric(vertical: 60),
       child: Row(
         mainAxisSize: MainAxisSize.min, // Set the main axis size to min
         crossAxisAlignment: CrossAxisAlignment.center,
@@ -582,7 +592,6 @@ class ParticipantState extends State<Participant> {
 
   List<Widget> _getRenderViews() {
     final List<Widget> list = [];
-    bool checkIfLocalActive = false;
 
     if (_users.isEmpty) {
       list.add(
@@ -647,7 +656,6 @@ class ParticipantState extends State<Participant> {
             ),
           ),
         ]));
-        checkIfLocalActive = true;
       } else {
         list.add(
           Stack(
@@ -700,12 +708,6 @@ class ParticipantState extends State<Participant> {
           ),
         );
       }
-    }
-
-    if (checkIfLocalActive) {
-      activeUser = true;
-    } else {
-      activeUser = false;
     }
     return list;
   }
