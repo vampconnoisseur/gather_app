@@ -1,6 +1,5 @@
 import 'dart:math';
 
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
@@ -10,6 +9,7 @@ import 'package:gather_app/screens/participant_screen.dart';
 import 'package:gather_app/screens/director_screen.dart';
 
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'package:google_sign_in/google_sign_in.dart';
 
@@ -122,7 +122,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: CupertinoNavigationBar(
-        leading: TextButton(
+        trailing: TextButton(
           onPressed: () {
             showModalBottomSheet(
               showDragHandle: true,
@@ -171,6 +171,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               Row(
                                 mainAxisAlignment:
                                     MainAxisAlignment.spaceBetween,
+                                mainAxisSize: MainAxisSize.max,
                                 children: [
                                   ElevatedButton(
                                     style: ElevatedButton.styleFrom(
@@ -229,9 +230,6 @@ class _HomeScreenState extends State<HomeScreen> {
                                         )
                                       ],
                                     ),
-                                  ),
-                                  const SizedBox(
-                                    width: 30,
                                   ),
                                   ElevatedButton(
                                     style: ElevatedButton.styleFrom(
@@ -314,7 +312,7 @@ class _HomeScreenState extends State<HomeScreen> {
           'Gather',
           style: TextStyle(fontSize: 21),
         ),
-        trailing: CupertinoNavigationBarBackButton(
+        leading: CupertinoNavigationBarBackButton(
           onPressed: () async {
             await _logout();
             await GoogleSignIn().signOut();
@@ -323,32 +321,37 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         backgroundColor: Colors.grey,
       ),
-      body: _selectedTabIndex == 1
-          ? CallLogsScreen(
-              uid: uid.toString(),
-            )
-          : Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  CircleAvatar(
-                    radius: 50,
-                    foregroundImage: NetworkImage(widget.photoURL),
-                    backgroundColor: Colors.transparent,
-                  ),
-                  const SizedBox(
-                    height: 15,
-                  ),
-                  Text(
-                    widget.displayName,
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w300,
+      body: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 200),
+        child: _selectedTabIndex == 1
+            ? CallLogsScreen(
+                key: const Key('CallLogsScreen'),
+                uid: uid.toString(),
+              )
+            : Center(
+                key: const Key('UserProfileScreen'),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    CircleAvatar(
+                      radius: 50,
+                      foregroundImage: NetworkImage(widget.photoURL),
+                      backgroundColor: Colors.transparent,
                     ),
-                  ),
-                ],
+                    const SizedBox(
+                      height: 15,
+                    ),
+                    Text(
+                      widget.displayName,
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w300,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
+      ),
       bottomNavigationBar: BottomNavigationBar(
         items: const [
           BottomNavigationBarItem(

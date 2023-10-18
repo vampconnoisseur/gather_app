@@ -1,7 +1,8 @@
 import 'dart:convert';
 
-import 'package:gather_app/models/user_model.dart';
 import 'package:flutter/material.dart';
+
+import 'package:gather_app/models/user_model.dart';
 
 class Message {
   String sendActiveUsers({required Set<AgoraUser> activeUsers}) {
@@ -57,8 +58,10 @@ class Message {
     required String myRuid,
     required String userName,
     required String photoURL,
+    required String myUid,
   }) {
     final credentials = {
+      'myUid': myUid,
       'fromUserId': fromUserId,
       'myRuid': myRuid,
       'userName': userName,

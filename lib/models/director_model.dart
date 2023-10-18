@@ -11,6 +11,7 @@ class DirectorModel {
   AgoraRtmChannel? channel;
   AgoraUser? localUser;
   String? meetingID;
+  Map<String, Map<String, String>> users;
 
   DirectorModel({
     this.engine,
@@ -20,6 +21,7 @@ class DirectorModel {
     this.lobbyUsers = const {},
     this.localUser,
     this.meetingID,
+    this.users = const {},
   });
 
   DirectorModel copyWith({
@@ -30,6 +32,7 @@ class DirectorModel {
     Set<AgoraUser>? lobbyUsers,
     AgoraUser? localUser,
     String? meetingID,
+    Map<String, Map<String, String>>? users,
   }) {
     return DirectorModel(
       meetingID: meetingID ?? this.meetingID,
@@ -39,6 +42,7 @@ class DirectorModel {
       activeUsers: activeUsers ?? this.activeUsers,
       lobbyUsers: lobbyUsers ?? this.lobbyUsers,
       localUser: localUser ?? this.localUser,
+      users: users ?? this.users,
     );
   }
 }

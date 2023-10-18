@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
@@ -20,22 +23,53 @@ class Director extends ConsumerStatefulWidget {
 }
 
 class _DirectorState extends ConsumerState<Director> {
+  int readMessageCount = 0;
+  int unreadMessageCount = 0;
+  String? meetingID;
+  bool isModalPopupOn = false;
+
+  StreamSubscription<QuerySnapshot>? meetingSnapshotSubscription;
+
   @override
   void initState() {
     super.initState();
-    ref
-        .read(directorController.notifier)
-        .joinCall(channelName: widget.channelName, uid: widget.uid);
+
+    final joinedTime = DateTime.now();
+    final joinedTimeString = joinedTime.millisecondsSinceEpoch.toString();
+
+    meetingID = "$widget.channelName-$joinedTimeString";
+
+    ref.read(directorController.notifier).joinCall(
+          channelName: widget.channelName,
+          uid: widget.uid,
+          meetingID: meetingID!,
+        );
+    startListeningForUnreadMessages(meetingID!);
   }
 
-  void showSnackBars() {
-    ScaffoldMessenger.of(context).clearSnackBars();
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        duration: Duration(seconds: 2),
-        content: Text('The director added you to stage.'),
-      ),
-    );
+  @override
+  void dispose() {
+    stopListeningForUnreadMessages();
+    super.dispose();
+  }
+
+  void popScreen() {
+    Navigator.pop(context);
+  }
+
+  void startListeningForUnreadMessages(String meetingID) {
+    meetingSnapshotSubscription = FirebaseFirestore.instance
+        .collection(meetingID)
+        .snapshots()
+        .listen((querySnapshot) {
+      setState(() {
+        unreadMessageCount = querySnapshot.docs.length - readMessageCount;
+      });
+    });
+  }
+
+  void stopListeningForUnreadMessages() {
+    meetingSnapshotSubscription?.cancel();
   }
 
   @override
@@ -60,40 +94,74 @@ class _DirectorState extends ConsumerState<Director> {
               color: Colors.black,
             ),
           ),
-          trailing: TextButton(
-            onPressed: () {
-              showModalBottomSheet(
-                useSafeArea: true,
-                isScrollControlled: true,
-                showDragHandle: true,
-                context: context,
-                builder: (BuildContext context) {
-                  return SafeArea(
-                    bottom: true,
-                    child: SizedBox(
-                      height: 550,
-                      child: ChatMessages(
-                        meetingID: directorData.meetingID!,
-                        uid: widget.uid.toString(),
+          trailing: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              TextButton(
+                onPressed: () {
+                  readMessageCount += unreadMessageCount;
+                  setState(() {
+                    unreadMessageCount = 0;
+                  });
+                  isModalPopupOn = true;
+
+                  showModalBottomSheet(
+                    useSafeArea: true,
+                    isScrollControlled: true,
+                    showDragHandle: true,
+                    context: context,
+                    builder: (BuildContext context) {
+                      return SafeArea(
+                        bottom: true,
+                        child: SizedBox(
+                          height: 550,
+                          child: ChatMessages(
+                            isDirector: true,
+                            meetingID: directorData.meetingID!,
+                            uid: widget.uid.toString(),
+                          ),
+                        ),
+                      );
+                    },
+                  ).whenComplete(() {
+                    readMessageCount += unreadMessageCount;
+                    isModalPopupOn = false;
+                  });
+                },
+                child: const Text(
+                  "Chat",
+                  style: TextStyle(
+                    fontSize: 21,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black,
+                  ),
+                ),
+              ),
+              if (unreadMessageCount > 0 && !isModalPopupOn)
+                Positioned(
+                  right: -3,
+                  top: -3,
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.red.withOpacity(0.8),
+                    ),
+                    child: Text(
+                      unreadMessageCount.toString(),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
                       ),
                     ),
-                  );
-                },
-              );
-            },
-            child: const Text(
-              "Chat",
-              style: TextStyle(
-                fontSize: 21,
-                fontWeight: FontWeight.w600,
-                color: Colors.black,
-              ),
-            ),
+                  ),
+                )
+            ],
           ),
           leading: CupertinoNavigationBarBackButton(
-            onPressed: () {
-              directorNotifier.leaveCall();
-              Navigator.pop(context);
+            onPressed: () async {
+              await directorNotifier.removeUsers();
+              popScreen();
             },
             color: Colors.black,
           ),
@@ -280,9 +348,30 @@ class StageUser extends StatelessWidget {
                   ),
                 ]),
         ),
+        Align(
+          alignment: Alignment.topRight,
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(10),
+              color: Colors.black45,
+            ),
+            child: IconButton(
+              onPressed: () {
+                directorNotifier.removeUser(
+                  rUid: directorData.activeUsers.elementAt(index).rUid,
+                  kicked: true,
+                );
+              },
+              icon: const Icon(Icons.remove),
+              color: Colors.red,
+            ),
+          ),
+        ),
         Container(
           decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(10), color: Colors.black54),
+            borderRadius: BorderRadius.circular(10),
+            color: Colors.black54,
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -362,6 +451,25 @@ class LobbyUser extends StatelessWidget {
                           .backgroundColor!
                           .withOpacity(1)
                       : Colors.grey,
+            ),
+            Align(
+              alignment: Alignment.topRight,
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(10),
+                  color: Colors.black45,
+                ),
+                child: IconButton(
+                  onPressed: () {
+                    directorNotifier.removeUser(
+                      rUid: directorData.lobbyUsers.elementAt(index).rUid,
+                      kicked: true,
+                    );
+                  },
+                  icon: const Icon(Icons.remove),
+                  color: Colors.red,
+                ),
+              ),
             ),
             Align(
               alignment: Alignment.center,

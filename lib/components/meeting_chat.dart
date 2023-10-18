@@ -1,16 +1,20 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 import 'package:gather_app/components/message_bubble.dart';
 
 class ChatMessages extends StatelessWidget {
   const ChatMessages({
     super.key,
+    required this.isDirector,
     required this.meetingID,
     required this.uid,
   });
 
   final String uid;
   final String meetingID;
+  final bool isDirector;
 
   @override
   Widget build(BuildContext context) {
@@ -58,11 +62,19 @@ class ChatMessages extends StatelessWidget {
 
             if (nextUserIsSame) {
               return MessageBubble.next(
+                messageID: loadedMessages[index].id,
+                meetingID: meetingID,
+                isDirector: isDirector,
+                isDeleted: chatMessage['isDeleted'],
                 message: chatMessage['text'],
                 isMe: uid == currentMessageUserId,
               );
             } else {
               return MessageBubble.first(
+                meetingID: meetingID,
+                messageID: loadedMessages[index].id,
+                isDirector: isDirector,
+                isDeleted: chatMessage['isDeleted'],
                 userImage: chatMessage['userImage'],
                 username: chatMessage['username'],
                 message: chatMessage['text'],

@@ -11,6 +11,8 @@ import 'package:gather_app/models/director_model.dart';
 import 'package:agora_rtc_engine/agora_rtc_engine.dart';
 import 'package:agora_rtm/agora_rtm.dart';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:permission_handler/permission_handler.dart';
@@ -29,14 +31,29 @@ class DirectorController extends StateNotifier<DirectorModel> {
     state = DirectorModel(engine: engine, client: client);
   }
 
-  Future<void> joinCall({required String channelName, required int uid}) async {
+  Future<void> removeUsers() async {
+    for (var rUid in state.users.keys) {
+      final joinedTimeString = state.users[rUid]?['joinedTimeString'] as String;
+      await FirebaseFirestore.instance
+          .collection('meetings')
+          .doc(joinedTimeString)
+          .update({
+        'left_time': DateTime.now(),
+      });
+    }
+
+    leaveCall();
+  }
+
+  Future<String> joinCall({
+    required String channelName,
+    required int uid,
+    required String meetingID,
+  }) async {
     await _initialize();
     await [Permission.camera, Permission.microphone].request();
 
-    final joinedTime = DateTime.now();
-    final joinedTimeString = joinedTime.millisecondsSinceEpoch.toString();
-
-    state.meetingID = "$channelName-$joinedTimeString";
+    state.meetingID = meetingID;
 
     state.engine?.registerEventHandler(
       RtcEngineEventHandler(
@@ -56,9 +73,23 @@ class DirectorController extends StateNotifier<DirectorModel> {
             ),
           );
         },
-        onUserOffline: (connection, remoteUid, reason) {
-          _log("User Left.");
-          removeUser(rUid: remoteUid);
+        onUserOffline: (connection, remoteUid, reason) async {
+          final participantRuid = remoteUid.toString();
+          final userMap = state.users[participantRuid];
+          final joinedTimeString = userMap?['joinedTimeString'];
+
+          await FirebaseFirestore.instance
+              .collection('meetings')
+              .doc(joinedTimeString)
+              .update({
+            'left_time': DateTime.now(),
+          });
+
+          state = state.copyWith(
+            users: Map.from(state.users)..remove(participantRuid),
+          );
+
+          removeUser(rUid: remoteUid, kicked: false);
         },
         onRemoteAudioStateChanged:
             (connection, remoteUid, state, reason, elapsed) {
@@ -135,7 +166,7 @@ class DirectorController extends StateNotifier<DirectorModel> {
       );
     };
 
-    state.channel?.onMessageReceived = (message, fromMember) {
+    state.channel?.onMessageReceived = (message, fromMember) async {
       List<String> parsedMessage = message.text.split(" ");
 
       String action = parsedMessage[0];
@@ -146,13 +177,37 @@ class DirectorController extends StateNotifier<DirectorModel> {
           final userCredentials = jsonDecode(messageText);
 
           final fromUserId = userCredentials['fromUserId'];
-          final myUid = userCredentials['myRuid'];
+          final myRuid = userCredentials['myRuid'];
+          final myUid = int.parse(userCredentials['myUid']);
           final userName = userCredentials['userName'];
           final photoURL = userCredentials['photoURL'];
 
+          DateTime joinedTime = DateTime.now();
+          String joinedTimeString =
+              joinedTime.millisecondsSinceEpoch.toString();
+
+          state = state.copyWith(
+            users: {
+              ...state.users,
+              myRuid: {
+                'joinedTimeString': joinedTimeString,
+              },
+            },
+          );
+
+          await FirebaseFirestore.instance
+              .collection('meetings')
+              .doc(joinedTimeString)
+              .set({
+            'channel': channelName,
+            'uid': myUid,
+            'username': userName,
+            'join_time': joinedTime,
+          });
+
           if (fromUserId == uid.toString()) {
             addUserToLobby(
-              remoteUid: int.tryParse(myUid.toString()) ?? 0,
+              remoteUid: int.tryParse(myRuid.toString()) ?? 0,
               name: userName.toString(),
               photoURL: photoURL.toString(),
             );
@@ -161,6 +216,7 @@ class DirectorController extends StateNotifier<DirectorModel> {
         default:
       }
     };
+    return state.meetingID!;
   }
 
   Future<void> leaveCall() async {
@@ -185,18 +241,20 @@ class DirectorController extends StateNotifier<DirectorModel> {
   }
 
   Future<void> updateUserAudio({required int rUid, required bool muted}) async {
-    AgoraUser temp =
-        state.activeUsers.singleWhere((element) => element.rUid == rUid);
-    Set<AgoraUser> tempSet = state.activeUsers;
-    tempSet.remove(temp);
-    tempSet.add(temp.copyWith(muted: muted));
-    state = state.copyWith(activeUsers: tempSet);
+    if (state.activeUsers.isNotEmpty) {
+      AgoraUser temp =
+          state.activeUsers.singleWhere((element) => element.rUid == rUid);
+      Set<AgoraUser> tempSet = state.activeUsers;
+      tempSet.remove(temp);
+      tempSet.add(temp.copyWith(muted: muted));
+      state = state.copyWith(activeUsers: tempSet);
 
-    state.channel!.sendMessage2(
-      RtmMessage.fromText(
-        Message().sendActiveUsers(activeUsers: state.activeUsers),
-      ),
-    );
+      state.channel!.sendMessage2(
+        RtmMessage.fromText(
+          Message().sendActiveUsers(activeUsers: state.activeUsers),
+        ),
+      );
+    }
   }
 
   Future<void> toggleUserVideo(
@@ -321,7 +379,7 @@ class DirectorController extends StateNotifier<DirectorModel> {
     state.channel!.sendMessage2(RtmMessage.fromText("unstaged $remoteUid"));
   }
 
-  Future<void> removeUser({required int rUid}) async {
+  Future<void> removeUser({required int rUid, required bool kicked}) async {
     Set<AgoraUser> tempActive = state.activeUsers;
     Set<AgoraUser> tempLobby = state.lobbyUsers;
     String? tempName;
@@ -346,8 +404,14 @@ class DirectorController extends StateNotifier<DirectorModel> {
         Message().sendActiveUsers(activeUsers: state.activeUsers),
       ),
     );
-    state.channel!
-        .sendMessage2(RtmMessage.fromText("removedUser $rUid $tempName"));
+
+    if (kicked) {
+      state.channel!
+          .sendMessage2(RtmMessage.fromText("kickedUser $rUid $tempName"));
+    } else {
+      state.channel!
+          .sendMessage2(RtmMessage.fromText("removedUser $rUid $tempName"));
+    }
   }
 }
 

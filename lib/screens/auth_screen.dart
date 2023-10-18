@@ -33,6 +33,16 @@ class _AuthScreenState extends State<AuthScreen> {
   var _isAuthenticating = false;
   File? _selectedImage;
 
+  @override
+  void initState() {
+    super.initState();
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
+  }
+
   void showSnackBar({required String message}) {
     ScaffoldMessenger.of(context).clearSnackBars();
     ScaffoldMessenger.of(context).showSnackBar(

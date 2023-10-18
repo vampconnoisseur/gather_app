@@ -24,47 +24,69 @@ class CustomCallLogCard extends StatelessWidget {
       ),
       margin: const EdgeInsets.fromLTRB(15, 12, 15, 5),
       elevation: 4,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: 5,
-          vertical: 7,
-        ),
-        child: Column(
-          children: [
-            ListTile(
-              title: Text('Channel: $channelName'),
-              subtitle: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(
-                    height: 8,
+      child: SizedBox(
+        width: MediaQuery.of(context).size.width,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(25, 15, 25, 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Align(
+                alignment: Alignment.center,
+                child: Text(
+                  'Channel: $channelName',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
                   ),
-                  Row(
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Date: $formattedJoinDate',
-                            style: const TextStyle(fontSize: 15),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Date: $formattedJoinDate',
+                          style: const TextStyle(
+                            fontSize: 16,
                           ),
-                          Text(
-                            'Duration: $callDuration',
-                            style: const TextStyle(fontSize: 15),
+                        ),
+                        Text(
+                          'Duration: $callDuration',
+                          style: const TextStyle(
+                            fontSize: 16,
                           ),
-                        ],
-                      ),
-                      const Spacer(),
-                      Text(
-                        'Join Time: $formattedJoinTime\nLeft Time: $formattedLeftTime',
-                        style: const TextStyle(fontSize: 15),
-                      ),
-                    ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          'Join Time: $formattedJoinTime',
+                          style: const TextStyle(
+                            fontSize: 16,
+                          ),
+                        ),
+                        Text(
+                          'Left Time: $formattedLeftTime',
+                          style: const TextStyle(
+                            fontSize: 16,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

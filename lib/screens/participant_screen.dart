@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
@@ -7,14 +8,11 @@ import 'package:gather_app/message.dart';
 import 'package:gather_app/utils/config.dart';
 import 'package:gather_app/models/user_model.dart';
 import 'package:gather_app/services/renew_token.dart';
-import 'package:gather_app/components/whiteboard.dart';
 import 'package:gather_app/components/new_message.dart';
 import 'package:gather_app/components/meeting_chat.dart';
 
 import 'package:agora_rtm/agora_rtm.dart';
 import 'package:agora_rtc_engine/agora_rtc_engine.dart';
-
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 class Participant extends StatefulWidget {
   final String channelName;
@@ -41,17 +39,22 @@ class ParticipantState extends State<Participant> {
 
   String? meetingID;
 
+  int readMessageCount = 0;
+  int unreadMessageCount = 0;
+
+  StreamSubscription<QuerySnapshot>? meetingSnapshotSubscription;
+
   bool muted = true;
   bool activeUser = false;
   bool videoDisabled = true;
 
   bool chatActive = false;
+  bool isModalPopupOn = false;
   bool whiteBoardActive = false;
   bool isAudioAlertActive = false;
   bool isVideoAlertActive = false;
 
   var myRuid = "";
-  int? myRuid1;
 
   bool areControlButtonsActive = true;
   bool isEndCallButtonActive = true;
@@ -70,17 +73,34 @@ class ParticipantState extends State<Participant> {
 
   @override
   void dispose() {
-    _engine.leaveChannel();
-    _channel?.leave();
-    _client?.logout();
-    _client?.release();
-    if (_users.isNotEmpty) {
-      _users.clear();
-    }
-    _users.clear();
-    _engine.release();
-    buttonTimer?.cancel();
     super.dispose();
+    buttonTimer?.cancel();
+    if (mounted) {
+      _dispose();
+    }
+  }
+
+  Future<void> _dispose() async {
+    await _engine.leaveChannel();
+    await _engine.release();
+    await _client?.release();
+    await _channel?.leave();
+    await _channel?.release();
+  }
+
+  void startListeningForUnreadMessages(String meetingID) {
+    meetingSnapshotSubscription = FirebaseFirestore.instance
+        .collection(meetingID)
+        .snapshots()
+        .listen((querySnapshot) {
+      setState(() {
+        unreadMessageCount = querySnapshot.docs.length - readMessageCount;
+      });
+    });
+  }
+
+  void stopListeningForUnreadMessages() {
+    meetingSnapshotSubscription?.cancel();
   }
 
   void showSnackBar({required String message}) {
@@ -124,27 +144,11 @@ class ParticipantState extends State<Participant> {
       }, onUserJoined: (RtcConnection connection, int rUid, int elapsed) async {
         _log(
             '[onUserJoined] connection: ${connection.toJson()} remoteUid[Set]: $rUid elapsed: $elapsed');
-
-        myRuid1 = rUid;
-
-        joinedTime = DateTime.now();
-        joinedTimeString = joinedTime?.millisecondsSinceEpoch.toString();
-
-        await FirebaseFirestore.instance
-            .collection('meetings')
-            .doc(joinedTimeString)
-            .set({
-          'channel': widget.channelName,
-          'uid': widget.uid,
-          'username': widget.userName,
-          'join_time': joinedTime,
-        });
-      }, onUserOffline:
-          (RtcConnection connection, int rUid, UserOfflineReasonType reason) {
+      }, onUserOffline: (RtcConnection connection, int rUid,
+          UserOfflineReasonType reason) async {
         _log('userLeft: $rUid');
       }, onLeaveChannel: (RtcConnection connection, RtcStats stats) async {
         _log('onLeaveChannel');
-        if (_users.isNotEmpty) _users.clear();
       }),
     );
 
@@ -204,13 +208,30 @@ class ParticipantState extends State<Participant> {
             setState(() {
               meetingID = parsedMessage[2];
             });
+            startListeningForUnreadMessages(meetingID!);
           }
           break;
         case "removedUser":
           String userName = parsedMessage[2];
+          if (participantRuid == myRuid) {
+            _onCallEnd();
+            showSnackBar(message: "Lost connection.");
+          }
           if (participantRuid != myRuid) {
             showSnackBar(message: "$userName has left");
           }
+          break;
+        case "kickedUser":
+          String userName = parsedMessage[2];
+          if (participantRuid == myRuid) {
+            _onCallEnd();
+            showSnackBar(message: "You have been removed from the meeting.");
+          }
+          if (participantRuid != myRuid) {
+            showSnackBar(
+                message: "$userName has been removed from the meeting.");
+          }
+          break;
         case "userJoined":
           String userName = parsedMessage[2];
           if (participantRuid != myRuid) {
@@ -219,7 +240,9 @@ class ParticipantState extends State<Participant> {
           break;
         case "unstaged":
           if (participantRuid == myRuid) {
+            if (chatActive) Navigator.pop(context);
             buttonTimer?.cancel();
+
             setState(() {
               activeUser = false;
               areControlButtonsActive = false;
@@ -243,6 +266,7 @@ class ParticipantState extends State<Participant> {
               RtmMessage.fromText(
                 Message().sendCredentials(
                   fromUserId: fromMember.userId,
+                  myUid: widget.uid.toString(),
                   myRuid: myRuid,
                   userName: widget.userName,
                   photoURL: widget.photoURL,
@@ -350,8 +374,8 @@ class ParticipantState extends State<Participant> {
           }
           break;
         case "endCall":
-          showSnackBar(message: "The director has ended the call.");
           _onCallEnd();
+          showSnackBar(message: "The director has ended the call.");
         case "activeUsers":
           _users = Message().parseActiveUsers(userString: participantRuid);
           setState(() {});
@@ -375,6 +399,20 @@ class ParticipantState extends State<Participant> {
     });
   }
 
+  void toggleButtonVisibility() {
+    setState(() {
+      areControlButtonsActive = !areControlButtonsActive;
+      if (areControlButtonsActive) {
+        isEndCallButtonActive = true;
+        buttonTimer?.cancel();
+        buttonTimer = Timer(const Duration(seconds: 3), toggleButtonVisibility);
+      } else {
+        isEndCallButtonActive = false;
+        buttonTimer?.cancel();
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return SafeArea(
@@ -385,17 +423,16 @@ class ParticipantState extends State<Participant> {
           children: <Widget>[
             Expanded(
               child: GestureDetector(
-                onTap: startButtonTimer,
+                onTap: toggleButtonVisibility,
                 child: Stack(
                   children: <Widget>[
                     _broadcastView(),
                     _toolbar(),
-                    if (activeUser && areControlButtonsActive) chatButton(),
+                    chatButton(),
                   ],
                 ),
               ),
             ),
-            if (whiteBoardActive) const Whiteboard(),
           ],
         ),
       ),
@@ -403,80 +440,117 @@ class ParticipantState extends State<Participant> {
   }
 
   Widget chatButton() {
-    return Positioned(
-      top: 50,
-      right: 30,
-      child: RawMaterialButton(
-        onPressed: () {
-          _onToggleChat();
-          showModalBottomSheet(
-            useSafeArea: true,
-            isScrollControlled: true,
-            showDragHandle: true,
-            context: context,
-            builder: (BuildContext context) {
-              if (meetingID != null) {
-                return LayoutBuilder(
-                  builder: (context, constraints) {
-                    final keyboardSpace =
-                        MediaQuery.of(context).viewInsets.bottom;
-                    return SafeArea(
-                      child: SizedBox(
-                        height: keyboardSpace + 550,
-                        child: Column(
-                          children: [
-                            Expanded(
-                              child: ChatMessages(
-                                meetingID: meetingID!,
-                                uid: widget.uid.toString(),
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        if ((areControlButtonsActive && activeUser) || isModalPopupOn)
+          Positioned(
+            top: 50,
+            right: 30,
+            child: RawMaterialButton(
+              onPressed: () {
+                readMessageCount += unreadMessageCount;
+                setState(() {
+                  unreadMessageCount = 0;
+                  isModalPopupOn = true;
+                });
+
+                showModalBottomSheet(
+                  useSafeArea: true,
+                  isScrollControlled: true,
+                  showDragHandle: true,
+                  context: context,
+                  builder: (BuildContext context) {
+                    if (meetingID != null) {
+                      return LayoutBuilder(
+                        builder: (context, constraints) {
+                          final keyboardSpace =
+                              MediaQuery.of(context).viewInsets.bottom;
+                          return SafeArea(
+                            child: SizedBox(
+                              height: keyboardSpace + 550,
+                              child: Column(
+                                children: [
+                                  Expanded(
+                                    child: ChatMessages(
+                                      isDirector: false,
+                                      meetingID: meetingID!,
+                                      uid: widget.uid.toString(),
+                                    ),
+                                  ),
+                                  NewMessage(
+                                    meetingID: meetingID!,
+                                    uid: widget.uid.toString(),
+                                    photoURL: widget.photoURL,
+                                    userName: widget.userName,
+                                  ),
+                                  SizedBox(
+                                    height: keyboardSpace,
+                                  )
+                                ],
                               ),
                             ),
-                            NewMessage(
-                              meetingID: meetingID!,
-                              uid: widget.uid.toString(),
-                              photoURL: widget.photoURL,
-                              userName: widget.userName,
-                            ),
-                            SizedBox(
-                              height: keyboardSpace,
-                            )
-                          ],
+                          );
+                        },
+                      );
+                    }
+                    return const Column(children: [
+                      CupertinoActivityIndicator(
+                        color: Colors.black,
+                      ),
+                      SizedBox(height: 10),
+                      Text(
+                        "Loading Chats...",
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w400,
                         ),
                       ),
-                    );
+                    ]);
                   },
-                );
-              }
-              return const Column(children: [
-                CupertinoActivityIndicator(
-                  color: Colors.black,
+                ).whenComplete(() {
+                  readMessageCount += unreadMessageCount;
+                  setState(() {
+                    isModalPopupOn = false;
+                    unreadMessageCount = 0;
+                  });
+                  startButtonTimer();
+                });
+              },
+              shape: const CircleBorder(),
+              constraints: const BoxConstraints(maxWidth: 82),
+              elevation: 2.0,
+              fillColor: Colors.grey,
+              padding: const EdgeInsets.all(12.0),
+              child: const Icon(
+                Icons.chat,
+                size: 21.0,
+              ),
+            ),
+          ),
+        if (unreadMessageCount > 0 &&
+            !isModalPopupOn &&
+            activeUser &&
+            areControlButtonsActive)
+          Positioned(
+            right: 25,
+            top: 40,
+            child: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.red.withOpacity(0.8),
+              ),
+              child: Text(
+                unreadMessageCount.toString(),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
                 ),
-                SizedBox(height: 10),
-                Text(
-                  "Loading Chats...",
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w400,
-                  ),
-                ),
-              ]);
-            },
-          ).whenComplete(() {
-            setState(() {
-              chatActive = false;
-            });
-          });
-        },
-        shape: const CircleBorder(),
-        constraints: const BoxConstraints(maxWidth: 82),
-        elevation: 2.0,
-        fillColor: chatActive ? Colors.white : Colors.grey,
-        padding: const EdgeInsets.all(12.0),
-        child: const Icon(
-          Icons.chat,
-          size: 25.0,
-        ),
-      ),
+              ),
+            ),
+          )
+      ],
     );
   }
 
@@ -485,29 +559,9 @@ class ParticipantState extends State<Participant> {
       alignment: Alignment.bottomCenter,
       padding: const EdgeInsets.symmetric(vertical: 60),
       child: Row(
-        mainAxisSize: MainAxisSize.min, // Set the main axis size to min
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.center,
         children: <Widget>[
-          (activeUser && areControlButtonsActive)
-              ? RawMaterialButton(
-                  onPressed: () {
-                    startButtonTimer();
-                    _onToggleWhiteBoard();
-                  },
-                  shape: const CircleBorder(),
-                  constraints: const BoxConstraints(maxWidth: 52),
-                  elevation: 2.0,
-                  fillColor: whiteBoardActive ? Colors.white : Colors.grey,
-                  padding: const EdgeInsets.all(12.0),
-                  child: const Icon(
-                    Icons.edit,
-                    size: 20.0,
-                  ),
-                )
-              : const SizedBox(),
-          const SizedBox(
-            width: 20,
-          ),
           (activeUser && areControlButtonsActive)
               ? RawMaterialButton(
                   onPressed: () {
@@ -655,6 +709,17 @@ class ParticipantState extends State<Participant> {
               child: Text(widget.userName),
             ),
           ),
+          muted
+              ? const Positioned(
+                  top: 35,
+                  left: 35,
+                  child: Icon(
+                    Icons.mic_off,
+                    color: Colors.white,
+                    size: 24,
+                  ),
+                )
+              : Container(),
         ]));
       } else {
         list.add(
@@ -695,8 +760,8 @@ class ParticipantState extends State<Participant> {
               ),
               _users[i].muted
                   ? const Positioned(
-                      top: 25,
-                      left: 25,
+                      top: 35,
+                      left: 35,
                       child: Icon(
                         Icons.mic_off,
                         color: Colors.white,
@@ -758,15 +823,8 @@ class ParticipantState extends State<Participant> {
     return Container();
   }
 
-  void _onCallEnd() async {
-    // dispose();
-    Navigator.pop(context);
-    await FirebaseFirestore.instance
-        .collection('meetings')
-        .doc(joinedTimeString)
-        .update({
-      'left_time': DateTime.now(),
-    }).onError((error, stackTrace) => _log(error.toString()));
+  void _onCallEnd() {
+    Navigator.of(context).popUntil((route) => route.isFirst);
   }
 
   void _onToggleMute() {
@@ -785,18 +843,6 @@ class ParticipantState extends State<Participant> {
 
   void _onSwitchCamera() {
     _engine.switchCamera();
-  }
-
-  void _onToggleChat() {
-    setState(() {
-      chatActive = !chatActive;
-    });
-  }
-
-  void _onToggleWhiteBoard() {
-    setState(() {
-      whiteBoardActive = !whiteBoardActive;
-    });
   }
 }
 

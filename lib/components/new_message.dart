@@ -1,6 +1,7 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class NewMessage extends StatefulWidget {
   const NewMessage({
@@ -43,6 +44,7 @@ class _NewMessageState extends State<NewMessage> {
 
     FirebaseFirestore.instance.collection(widget.meetingID).add({
       'text': enteredMessage,
+      'isDeleted': false,
       'createdAt': Timestamp.now(),
       'userId': widget.uid,
       'username': widget.userName,
@@ -66,7 +68,13 @@ class _NewMessageState extends State<NewMessage> {
               textCapitalization: TextCapitalization.sentences,
               autocorrect: true,
               enableSuggestions: true,
-              placeholder: "Chat...",
+              prefix: const Padding(
+                padding: EdgeInsets.all(8.0),
+                child: Icon(
+                  Icons.chat,
+                  color: Colors.grey,
+                ),
+              ),
             ),
           ),
           IconButton(
