@@ -1,12 +1,13 @@
 import 'dart:async';
 
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import 'package:gather_app/models/director_model.dart';
 import 'package:gather_app/components/meeting_chat.dart';
 import 'package:gather_app/controllers/director_controller.dart';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'package:agora_rtc_engine/agora_rtc_engine.dart';
 
@@ -15,8 +16,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 class Director extends ConsumerStatefulWidget {
   final String channelName;
   final int uid;
+  final Function onEndMeeting;
 
-  const Director({super.key, required this.channelName, required this.uid});
+  const Director({
+    super.key,
+    required this.channelName,
+    required this.uid,
+    required this.onEndMeeting,
+  });
 
   @override
   ConsumerState<Director> createState() => _DirectorState();
@@ -37,7 +44,7 @@ class _DirectorState extends ConsumerState<Director> {
     final joinedTime = DateTime.now();
     final joinedTimeString = joinedTime.millisecondsSinceEpoch.toString();
 
-    meetingID = "$widget.channelName-$joinedTimeString";
+    meetingID = "${widget.channelName}-$joinedTimeString";
 
     ref.read(directorController.notifier).joinCall(
           channelName: widget.channelName,
@@ -50,6 +57,7 @@ class _DirectorState extends ConsumerState<Director> {
   @override
   void dispose() {
     stopListeningForUnreadMessages();
+    widget.onEndMeeting(widget.channelName);
     super.dispose();
   }
 

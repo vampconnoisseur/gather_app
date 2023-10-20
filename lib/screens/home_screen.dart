@@ -40,10 +40,30 @@ class _HomeScreenState extends State<HomeScreen> {
   int? uid;
   int _selectedTabIndex = 0;
 
+  List<String> _activeChannels = [];
+
   @override
   void initState() {
     super.initState();
     getUserUID();
+    fetchActiveChannels();
+  }
+
+  Future<void> fetchActiveChannels() async {
+    final activeChannelsSnapshot =
+        await FirebaseFirestore.instance.collection('active_channels').get();
+    _activeChannels = activeChannelsSnapshot.docs.map((doc) => doc.id).toList();
+    setState(() {});
+  }
+
+  void endMeeting(String channelName) {
+    FirebaseFirestore.instance
+        .collection('active_channels')
+        .doc(channelName)
+        .delete()
+        .then((_) {
+      _activeChannels.remove(channelName);
+    });
   }
 
   Future<void> getUserUID() async {
@@ -82,11 +102,32 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  void navigateToParticipantScreen() {
-    if (uid != null) {
-      Navigator.pop(
-        context,
+  void navigateToParticipantScreen() async {
+    await fetchActiveChannels();
+    if (!_activeChannels.contains(_channelName.text)) {
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return CupertinoAlertDialog(
+            title: const Text("Error."),
+            content: const Text(
+              "Channel has not been hosted.",
+            ),
+            actions: <Widget>[
+              TextButton(
+                child: const Text("Okay"),
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+              ),
+            ],
+          );
+        },
       );
+      return;
+    }
+
+    if (uid != null) {
       Navigator.of(context).push(
         MaterialPageRoute(
           builder: (context) => Participant(
@@ -102,20 +143,56 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  void navigateToDirectorScreen() {
-    if (uid != null) {
-      Navigator.pop(context);
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (context) => Director(
-            channelName: _channelName.text,
-            uid: uid!,
-          ),
-        ),
+  void navigateToDirectorScreen() async {
+    await fetchActiveChannels();
+    if (_activeChannels.contains(_channelName.text)) {
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return CupertinoAlertDialog(
+            title: const Text("Error."),
+            content: const Text(
+              "Channel has already been hosted.",
+            ),
+            actions: <Widget>[
+              TextButton(
+                child: const Text("Okay"),
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+              ),
+            ],
+          );
+        },
       );
-    } else {
       return;
     }
+
+    FirebaseFirestore.instance
+        .collection('active_channels')
+        .doc(_channelName.text)
+        .set({
+      'channelName': _channelName.text,
+      'directorUid': uid,
+    }).then((_) {
+      setState(() {
+        _activeChannels.add(_channelName.text);
+      });
+
+      if (uid != null) {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => Director(
+              channelName: _channelName.text,
+              uid: uid!,
+              onEndMeeting: endMeeting,
+            ),
+          ),
+        );
+      } else {
+        return;
+      }
+    });
   }
 
   @override
@@ -196,7 +273,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                           context: context,
                                           builder: (BuildContext context) {
                                             return CupertinoAlertDialog(
-                                              title: const Text("Error"),
+                                              title: const Text("Error."),
                                               content: const Text(
                                                 "Channel name cannot be empty.",
                                               ),
@@ -253,7 +330,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                           context: context,
                                           builder: (BuildContext context) {
                                             return CupertinoAlertDialog(
-                                              title: const Text("Error"),
+                                              title: const Text("Error."),
                                               content: const Text(
                                                   "Channel name cannot be empty."),
                                               actions: <Widget>[
